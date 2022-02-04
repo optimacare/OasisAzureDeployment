@@ -1,0 +1,45 @@
+images:
+  oasis:
+    platform:
+      image: ${ACR}/coreoasis/api_server
+      imagePullPolicy: Always
+    worker_controller:
+      image: ${ACR}/coreoasis/worker_controller
+      imagePullPolicy: Always
+
+ingress:
+  uiHostname: ${DOMAIN}
+
+  tls:
+    strategy: 'letsencrypt'
+    certificateSecret: oasis-ingress-tls
+    email: ${LETSENCRYPT_EMAIL}
+
+
+oasisServer:
+  oidc:
+    endpoint: https://${DOMAIN}/auth/realms/oasis/protocol/openid-connect/
+
+affinity:
+  # Place all pods on nodes with label oasis/node-type set to either 'platform'
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: oasis/node-type
+              operator: In
+              values:
+                - platform
+
+
+ingress-nginx:
+  controller:
+    nodeSelector:
+      oasis/node-type: platform
+
+    service:
+      annotations:
+        service.beta.kubernetes.io/azure-dns-label-name: ${DNS_LABEL_NAME}
+
+      # Make nginx log the real client IP
+      externalTrafficPolicy: Local
