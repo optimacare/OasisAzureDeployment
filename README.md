@@ -1,6 +1,6 @@
 # Oasis on Azure
 
-Check the requirements, configure your deployment
+Check the requirements, configure your deployment and deploy the platform.
 
 ## Requirements
 
@@ -23,25 +23,25 @@ It is highly recommended going through all configuration files but to deploy the
 
 More details about each setting is found below or in the file.
 
-### Settings.sh file
+### Deploy script settings
 
-Contains variables used by the `deploy.sh` script. Open the file for more details about each variable and its values.
+The file `settings/settings.sh` contains variables used by the `deploy.sh` script. Open the file for more details about each variable and its values.
 
-### Parameters.json file
+### Azure bicep parameters - settings/azure/parameters.json
 
-Contains Azure specific parameters like CIDR ranges, node types etc.
+The file `settings/azure/parameters.json` contains Azure specific parameters like CIDR ranges, node types etc.
 
 A short summary of the most interesting ones:
 
-| Name              | Description                                                                                                                                                                                                                                                                   |
-|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| allowedCidrRanges | White listed CIDR ranges - only these will be able to over HTTPS. Make sure to include the range/IP from where you will access the azure domain.                                                                                                                              |
-| openHttpForAll    | When set to `true` this will open up HTTP access without any filtering and redirect all requests to HTTPS. There are 2 reasons to have this open:<br>1. It is required for letsencrypt to create a valid TLS certificate.<br>2. Help some browsers to find the HTTPS service. |
-| availabilityZones | List of availability zones to use in this Azure location.                                                                                                                                                                                                                     |
-| platformNodeVm    | Type of Virtual Machine to use for the AKS platform node (run everything except for worker pods)                                                                                                                                                                              |
-| workerNodesVm     | Type of Virtual Machine to use for AKS worker nodes.                                                                                                                                                                                                                          |
-| clusterName       | AKS cluster name                                                                                                                                                                                                                                                              |
-| tags              | Tags to attach to all resources created                                                                                                                                                                                                                                       |
+| Name              | Description                                                                                                                                                                                                                                                                                                                                                 |
+|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| allowedCidrRanges | Whitelisted [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) ranges - only these will be able to connect over HTTPS. Make sure to include the range/IP from where you will access the azure domain. The adress provided by [whatsmyip](https://www.whatsmyip.org) might work, but not always depending on your network access to Azure. |
+| openHttpForAll    | When set to `true` this will open up HTTP access without any filtering and redirect all requests to HTTPS. There are 2 reasons to have this open:<br>1. It is required for letsencrypt to create a valid TLS certificate.<br>2. Help some browsers to find the HTTPS service.                                                                               |
+| availabilityZones | List of availability zones to use in this Azure location.                                                                                                                                                                                                                                                                                                   |
+| platformNodeVm    | Type of Virtual Machine to use for the AKS platform node (run everything except for worker pods)                                                                                                                                                                                                                                                            |
+| workerNodesVm     | Type of Virtual Machine to use for AKS worker nodes.                                                                                                                                                                                                                                                                                                        |
+| clusterName       | AKS cluster name                                                                                                                                                                                                                                                                                                                                            |
+| tags              | Tags to attach to all resources created                                                                                                                                                                                                                                                                                                                     |
 
 ### Helm settings
 
@@ -77,18 +77,28 @@ The summary lists the URL to each service as well as the kubectl command to upda
 Make sure all pods are started:
 
 ```
+# Update your kubectl context to point to your new AKS cluster:
+./deploy.sh update-kubectl
+
+# List all pods and their status
 kubectl get pods
 ```
 
-And then access the front by pointing your web browser to the "Front" url listed in the deploy output.
-
-## Configure kubectl
-
-Update your kubectl context to point to your new AKS cluster:
+Verify that our certificate is ready:
 
 ```
-az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "oasis-enterprise-eks" --overwrite-existing
+kubectl get certificate
 ```
+
+The `READY` column should be `True`. If it still is in `False` after a minute or so try to delete it and retreive a new:
+
+```
+kc delete certificate oasis-ingress-tls
+```
+
+Wait another 30 seconds. If it still is `False` read the [troubleshooting guide](https://cert-manager.io/docs/faq/acme/).
+
+When the certificate is ready you should be able to access the front by pointing your web browser to the "Front" url listed in the deployment output.
 
 You do now have a platform running in Azure, but without any models.
 

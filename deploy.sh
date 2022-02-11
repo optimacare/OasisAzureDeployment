@@ -11,6 +11,7 @@ function usage {
   echo "  cert-manager  Installs cert-manager"
   echo "  oasis         Installs Oasis"
   echo "  summary       Prints a summary of azure resource names and URLs"
+  echo "  update-kubectl         TODO"
   echo "  setup         TODO"
   echo "  models         TODO"
   echo ""
@@ -32,7 +33,9 @@ AKS="oasis-enterprise-aks"
 DOMAIN=${DNS_LABEL_NAME}.${LOCATION}.cloudapp.azure.com
 ACR_NAME="acr${DNS_LABEL_NAME//[^a-z0-9]/}"             # Must be unique within Azure and alpha numeric only.
 OASIS_API_URL="https://${DOMAIN}/api"
-AZURE_PARAM_FILE="${SCRIPT_DIR}/settings/azure/parameters.json"
+if [ -z "$AZURE_PARAM_FILE" ]; then
+  AZURE_PARAM_FILE="${SCRIPT_DIR}/settings/azure/parameters.json"
+fi
 
 export OASIS_API_URL
 
@@ -227,6 +230,9 @@ case "$DEPLOY_TYPE" in
     echo
     echo "Update kubectl:"
     echo " $ az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS"
+  ;;
+  "update-kubectl")
+    az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "oasis-enterprise-aks" --overwrite-existing
   ;;
   "setup")
 
