@@ -34,6 +34,8 @@ param openHttpForAll bool = false
 @description('The name of the container registry')
 param registryName string
 
+@description('The name of the Key Vault.')
+param keyVaultName string = 'oasis-enterprise'
 
 module vnet 'vnet.bicep' = {
   name: 'vnetDeploy'
@@ -51,6 +53,44 @@ module vnet 'vnet.bicep' = {
   ]
 }
 
+module identities 'identities.bicep' = {
+  name: 'identities'
+  params: {
+    tags: tags
+  }
+
+  dependsOn: [
+    vnet
+  ]
+}
+
+module keyVault 'key_vault.bicep' = {
+  name: 'keyVault'
+  params: {
+    keyVaultName: keyVaultName
+    userAssignedIdentity: identities.outputs.userAssignedIdentity
+    tags: tags
+  }
+
+  dependsOn: [
+    identities
+  ]
+}
+
+module storageAccount 'storage_account.bicep' = {
+  name: 'storageAccount'
+  params: {
+    userAssignedIdentity: identities.outputs.userAssignedIdentity
+    keyVaultName: keyVault.outputs.keyVaultName
+    keyVaultUri: keyVault.outputs.keyVaultUri
+    tags: tags
+  }
+
+  dependsOn: [
+    vnet
+  ]
+}
+
 module aks 'aks.bicep' = {
   name: 'aksDeploy'
   params: {
@@ -65,7 +105,7 @@ module aks 'aks.bicep' = {
   }
 
   dependsOn: [
-    vnet
+    storageAccount
   ]
 }
 
@@ -81,3 +121,8 @@ module registry 'registry.bicep' = {
     aks
   ]
 }
+
+output oasisFsNameSecretName string = storageAccount.outputs.oasisFsNameSecretName
+output oasisFsKeySecretName string = storageAccount.outputs.oasisFsKeySecretName
+output oasisFileShareName string = storageAccount.outputs.oasisFileShareName
+output modelsFileShareName string = storageAccount.outputs.modelsFileShareName

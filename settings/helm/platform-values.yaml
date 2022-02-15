@@ -21,12 +21,12 @@ oasisServer:
     endpoint: https://${DOMAIN}/auth/realms/oasis/protocol/openid-connect/
 
 affinity:
-  # Place all pods on nodes with label oasis/node-type set to either 'platform'
+  # Place all pods on nodes with label oasislmf/node-type set to either 'platform'
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: oasis/node-type
+            - key: oasislmf/node-type
               operator: In
               values:
                 - platform
@@ -35,7 +35,7 @@ affinity:
 ingress-nginx:
   controller:
     nodeSelector:
-      oasis/node-type: platform
+      oasislmf/node-type: platform
 
     service:
       annotations:
@@ -43,3 +43,24 @@ ingress-nginx:
 
       # Make nginx log the real client IP
       externalTrafficPolicy: Local
+
+
+azure:
+  host: {}
+  storageAccounts:
+    oasisfs:
+      secretName: oasis-storage-account
+      accountName: account  # Replaced by Azure Deployment
+      accountKey: key       # Replaced by Azure Deployment
+
+# Volumes to mount and use within the platform
+volumes:
+  host: null
+  azureFiles:
+    sharedFs:
+      csi:
+        driver: file.csi.azure.com
+        volumeAttributes:
+          secretName: oasis-storage-account
+          shareName: oasisfs                # Replaced by Azure Deployment
+          mountOptions: "dir_mode=0777,file_mode=0777,cache=strict,actimeo=30"

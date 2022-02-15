@@ -3,9 +3,9 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
+#trigger: none
 trigger:
-- main
-- feature/azure-sprint-1
+  - feature/azure-sprint-2
 
 pool:
   vmImage: ubuntu-latest
@@ -16,13 +16,20 @@ resources:
       name: OasisLMF/OasisPlatform
       endpoint: OasisLMF
       type: github
-      ref: platform-2.0-azure-sprint-1 # ref name to use; defaults to 'refs/heads/master'.
+      ref: platform-2.0-azure-sprint-2 # ref name to use; defaults to 'refs/heads/master'.
+    - repository: OasisPiWind
+      name: OasisLMF/OasisPiWind
+      endpoint: OasisLMF
+      type: github
+      ref: master
 
 steps:
-- checkout: self
-  path: OasisAzureDeployment
-- checkout: OasisPlatform
-  path: OasisPlatform
+#- checkout: self
+#  path: OasisAzureDeployment
+#- checkout: OasisPlatform
+#  path: OasisPlatform
+#- checkout: OasisPiWind
+#  path: OasisPiWind
 
 - script: |
     echo "pwd:"
@@ -33,18 +40,89 @@ steps:
     ls ..
   displayName: 'Check context'
 
-- script: |    
+- script: |
 
     set -e
     
+    cat << EOF > /tmp/settings.sh
     LOCATION="northcentralus"
-    RESOURCE_GROUP="oasis"
-    DNS_LABEL_NAME=
-    EMAIL=
+    DNS_LABEL_NAME="oasis-enterprise-devops"
+    LETSENCRYPT_EMAIL="johan.x.nilsson@nasdaq.com"
     OASIS_PLATFORM_DIR="$(cd ../OasisPlatform; pwd)"
+    OASIS_PIWIND_DIR="$(cd ../OasisPiWind; pwd)"
+    RESOURCE_GROUP="oasis-enterprise-devops"
+    AZURE_PARAM_FILE="/tmp/myparameters.json"
+    EOF
+    ls -l /tmp/settings.sh
+    cat /tmp/settings.sh
+    
+    cat << EOF > /tmp/myparameters.json
+    {
+      "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "clusterName": {
+          "value": "oasis-enterprise"
+        },
+        "platformNodeVm": {
+          "value": "Standard_B2ms"
+        },
+        "workerNodesVm": {
+          "value": "Standard_B2s"
+        },
+        "workerNodesMaxCount": {
+          "value": 2
+        },
+        "availabilityZones": {
+          "value": []
+        },
+        "workspaceTier": {
+          "value": "PerGB2018"
+        },
+        "vnetAddressPrefixes": {
+          "value": [
+            "10.240.0.0/16"
+          ]
+        },
+        "subnetAddressPrefix": {
+          "value": "10.240.0.0/20"
+        },
+        "allowedCidrRanges": {
+          "value": [
+            "213.164.193.165/32",
+            "217.73.12.1/32",
+            "217.73.13.1/32"
+          ]
+        },
+        "tags": {
+          "value": {
+            "oasis-enterprise": true
+          }
+        },
+        "openHttpForAll": {
+          "value": true
+        },
+        "keyVaultName": {
+          "value": "oasis-enterprise-v001"
+        }
+      }
+    }
+    EOF
+    ls -l /tmp/myparameters.json
+    cat /tmp/myparameters.json
 
-    cd ../OasisAzureDeployment
-    chmod +x deploy.sh # TODO fix
-    ./deploy.sh
+#    cd ../OasisAzureDeployment
+#    OE_SETTINGS_FILE=/tmp/settings.sh ./deploy.sh azure
 
   displayName: 'Deploy'
+
+- task: AzureCLI@2
+  displayName: Azure CLI
+  inputs:
+    azureSubscription: "Azure connection"
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+      echo "action:"
+      az group list
+      

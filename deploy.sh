@@ -5,16 +5,30 @@ set -e
 function usage {
   echo "Usage: $0 [all|azure|images|cert-manager|oasis|models|monitoring]"
   echo
-  echo "  all           Runs azure, images, cert-manager, oasis and summary"
-  echo "  azure         Deploys Azure resources by bicep templates"
-  echo "  images        Builds and push server/worker images to ACR"
-  echo "  cert-manager  Installs cert-manager"
-  echo "  oasis         Installs Oasis"
-  echo "  summary       Prints a summary of azure resource names and URLs"
-  echo "  update-kubectl         TODO"
-  echo "  setup         TODO"
-  echo "  models         TODO"
+  echo "  all            Runs deploys of azure, images, cert-manager, oasis and summary"
+  echo "  azure          Deploys Azure resources by bicep templates"
+  echo "  images         Builds and push server/worker images to ACR"
+  echo "  cert-manager   Installs cert-manager"
+  echo "  oasis          Installs Oasis"
+  echo "  summary        Prints a summary of azure resource names and URLs"
+  echo
+  echo "  setup          Runs piwind-model-files, models and analyses"
+  echo "  piwind-model-files Upload PiWind key/model data to Azure Files share for models"
+  echo "  models         Install/update models"
+  echo "  analyses       Runs a setup script in OasisPlatform to create one portfolio and a set of analyses"
+  echo
+  echo "  update-kubectl Update kubectl context cluster"
+  echo "  api [ls|run <id>] Basic API commands"
   echo ""
+  exit 1
+}
+
+function setup {
+  echo
+  echo "Read README.md and set all required settings."
+  echo
+  echo "Overrider the default setting.sh file with OE_SETTINGS_FILE variable."
+  exit 1
 }
 
 SCRIPT_DIR="$(cd $(dirname "$0"); pwd)"
@@ -36,48 +50,57 @@ OASIS_API_URL="https://${DOMAIN}/api"
 if [ -z "$AZURE_PARAM_FILE" ]; then
   AZURE_PARAM_FILE="${SCRIPT_DIR}/settings/azure/parameters.json"
 fi
+KEY_VAULT_NAME="$(grep -A1 '"keyVaultName":' "$AZURE_PARAM_FILE" | tail -n 1 | sed 's/.*"\([^"]*\)".*$/\1/g')"
 
 export OASIS_API_URL
 
 for evname in LOCATION DNS_LABEL_NAME RESOURCE_GROUP OASIS_PLATFORM_DIR OASIS_PIWIND_DIR LETSENCRYPT_EMAIL; do
   if [ -z "${!evname}" ]; then
     echo "Missing required environment variable: $evname"
-    exit 1
+    setup
   fi
 done
 
 if [ ! -f "$AZURE_PARAM_FILE" ]; then
   echo "Azure parameters file not found: $AZURE_PARAM_FILE"
-  exit 1
+  setup
 fi
 
 if [ ! -d "$OASIS_PLATFORM_DIR" ]; then
   echo "Oasis platform directory not found: $OASIS_PLATFORM_DIR"
-  exit 1
+  setup
 fi
 
 if [ ! -d "$OASIS_PIWIND_DIR" ]; then
   echo "Oasis PiWind directory not found: $OASIS_PIWIND_DIR"
-  exit 1
+  setup
 fi
 
 for chart in oasis-platform oasis-models oasis-monitoring; do
   CHART_DIR="${OASIS_PLATFORM_DIR}/kubernetes/charts/$chart/"
   if [ ! -d "$CHART_DIR" ]; then
     echo "Chart not found in OasisPlatform repository: $CHART_DIR"
-    exit 1
+    setup
   fi
 done
 
 if [[ ! "$DNS_LABEL_NAME" =~ ^[a-zA-Z0-9-]+$ ]]; then
   echo "Invalid DNS_LABEL_NAME: $DNS_LABEL_NAME"
-  exit 1
+  setup
 fi
 
 if [[ ! "$LETSENCRYPT_EMAIL" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
   echo "Invalid email: $LETSENCRYPT_EMAIL"
-  exit 1
+  setup
 fi
+
+if [ -z "$KEY_VAULT_NAME" ]; then
+  echo "No keyVaultName found in $AZURE_PARAM_FILE"
+  setup
+fi
+
+# Make sure we are logged in
+az login
 
 function updateKubectlCluster() {
   az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS" --overwrite-existing
@@ -101,7 +124,8 @@ function helm_deploy() {
     sed "s/\${LOCATION}/${LOCATION}/g" | \
     sed "s/\${DOMAIN}/${DOMAIN}/g" | \
     sed "s/\${LETSENCRYPT_EMAIL}/${LETSENCRYPT_EMAIL}/g" | \
-    helm $HELM_OP "$3" "$2" -f-
+    helm $HELM_OP "$3" "$2" -f- "${@:4}"
+
 }
 
 
@@ -192,17 +216,21 @@ case "$DEPLOY_TYPE" in
       -f settings/helm/cert-manager-values.yaml
   ;;
   "oasis")
+
+    OASIS_FS_ACCOUNT_NAME="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name oasisfs-name --query "value" -o tsv)"
+    OASIS_FS_ACCOUNT_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name oasisfs-key --query "value" -o tsv)"
+
+    if [[ -z "$OASIS_FS_ACCOUNT_NAME" ]] || [[ -z "$OASIS_FS_ACCOUNT_KEY" ]]; then
+      echo "Could not retrieve account name/key for file share"
+      exit 1
+    fi
+
+    echo "got them "$OASIS_FS_ACCOUNT_NAME - $OASIS_FS_ACCOUNT_KEY
+
     updateKubectlCluster
-    helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-platform/" "$HELM_PLATFORM_NAME"
+    helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-platform/" "$HELM_PLATFORM_NAME" \
+      --set "azure.storageAccounts.oasisfs.accountName=${OASIS_FS_ACCOUNT_NAME}" --set "azure.storageAccounts.oasisfs.accountKey=${OASIS_FS_ACCOUNT_KEY}"
     echo "Environment: https://${DOMAIN}"
-  ;;
-  "models")
-    updateKubectlCluster
-    helm_deploy "${SCRIPT_DIR}/settings/helm/models-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-models/" "$HELM_MODELS_NAME"
-  ;;
-  "monitoring")
-    updateKubectlCluster
-    helm_deploy "${SCRIPT_DIR}/settings/helm/monitoring-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-monitoring/" "$HELM_MONITORING_NAME"
   ;;
   "all")
     $0 azure
@@ -231,27 +259,85 @@ case "$DEPLOY_TYPE" in
     echo "Update kubectl:"
     echo " $ az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS"
   ;;
-  "update-kubectl")
+  "update-kubectl"|"update-kc")
     az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "oasis-enterprise-aks" --overwrite-existing
   ;;
-  "setup")
-
-    ${OASIS_PLATFORM_DIR}/kubernetes/scripts/k8s/upload_piwind_model_data.sh "$OASIS_PIWIND_DIR" \
-      'oasis/node-type: platform' # TODO Change to worker when shared storage is enabled
-
-    $0 models
+  "models")
+    updateKubectlCluster
+    helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml ${SCRIPT_DIR}/settings/helm/models-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-models/" "$HELM_MODELS_NAME"
 
     # Make sure the model is available before create analyses for it
-    echo -n "Waiting for model to be registered: "
-    while ! $0 api ls model | grep -qi oasislmf-piwind-1; do
-      echo -n "."
-      sleep 1
+        echo -n "Waiting for model to be registered: "
+        while ! $0 api ls model | grep -qi oasislmf-piwind-1; do
+          echo -n "."
+          sleep 1
+        done
+        echo "OK"
+  ;;
+  "monitoring")
+    updateKubectlCluster
+    helm_deploy "${SCRIPT_DIR}/settings/helm/monitoring-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-monitoring/" "$HELM_MONITORING_NAME"
+  ;;
+  "piwind-model-files"|"piwind-model_files")
+
+    MODEL_PATHS="meta-data/model_settings.json oasislmf.json model_data/ keys_data/ tests/"
+    OPTIONAL_MODEL_FILES="meta-data/chunking_configuration.json meta-data/scaling_configuration.json"
+
+    for file in $MODEL_PATHS; do
+      file="${OASIS_PIWIND_DIR}/$file"
+      if ! [ -f "$file" ] && ! [ -d "$file" ]; then
+        echo "Missing expected file: $file"
+        exit 1
+      fi
+      echo "Found file: $file"
     done
-    echo "OK"
+
+    for file in $OPTIONAL_MODEL_FILES; do
+      file="${OASIS_PIWIND_DIR}/$file"
+      if [ -f "$file" ] && ! [ -d "$file" ]; then
+        echo "Found optional file: $file"
+      fi
+    done
+
+    OASIS_FS_ACCOUNT_NAME="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name oasisfs-name --query "value" -o tsv)"
+    OASIS_FS_ACCOUNT_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name oasisfs-key --query "value" -o tsv)"
+
+    az storage directory create --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models -n "OasisLMF"
+    az storage directory create --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models -n "OasisLMF/PiWind"
+    az storage directory create --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models -n "OasisLMF/PiWind/1"
+
+    for file in $MODEL_PATHS; do
+      file=${OASIS_PIWIND_DIR}/$file
+      echo $file
+      if [ -f "$file" ]; then
+        az storage file upload --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models \
+          --source "$file" --path "OasisLMF/PiWind/1/$(basename $file)"
+      elif [ -d "$file" ]; then
+        az storage directory create --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models -n "OasisLMF/PiWind/1/$(basename $file)"
+        az storage file upload-batch --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY -s "$file" -d "models/OasisLMF/PiWind/1/$(basename $file)" --max-connections 10
+      fi
+      echo -n .
+    done
+
+    for file in $OPTIONAL_MODEL_FILES; do
+      file=${OASIS_PIWIND_DIR}/$file
+      if [ -f "$file" ] && ! [ -d "$file" ]; then
+        az storage file upload --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models \
+                  --source "$file" --path "OasisLMF/PiWind/1/$(basename $file)"
+      fi
+      echo -n .
+    done
+  ;;
+  "setup")
+    $0 piwind-model-files
+    $0 models
+    $0 analyses
+    ;;
+  "analyses")
 
     ${OASIS_PLATFORM_DIR}/kubernetes/scripts/api/setup_env.sh \
-      "${OASIS_PIWIND_DIR}/tests/inputs/SourceAccOEDPiWind.csv" \
-      "${OASIS_PIWIND_DIR}/tests/inputs/SourceLocOEDPiWind.csv"
+          "${OASIS_PIWIND_DIR}/tests/inputs/SourceAccOEDPiWind.csv" \
+          "${OASIS_PIWIND_DIR}/tests/inputs/SourceLocOEDPiWind.csv"
   ;;
   "api")
     export OASIS_AUTH_API=0

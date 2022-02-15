@@ -47,7 +47,6 @@ A short summary of the most interesting ones:
 
 There is no need to change settings for Helm charts while testing, but you should change default passwords when deploying a real environment. You can set chart values in `settings/helm`.
 
-
 ## Deploy
 
 ### Platform
@@ -137,10 +136,16 @@ az group list --query '[].{name:name, state:properties.provisioningState}'
 If you just want to delete one resource group:
 
 ```
-az group delete -yn <resource group>
+az group delete --no-wait -yn <resource group>
 
 # One additional is also created to group AKS resources
-az group delete -yn <resource group>-aks
+az group delete --no-wait -yn <resource group>-aks
+```
+
+This will do a "soft-delete" on the key vault, but to remove it permanently:
+
+```
+az keyvault purge --name <key-vault-name>
 ```
 
 ### Delete all resource groups

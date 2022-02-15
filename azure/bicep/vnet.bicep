@@ -1,3 +1,6 @@
+@description('Resource location')
+param location string = resourceGroup().location
+
 @description('The virtual network name')
 param vnetName string
 
@@ -21,7 +24,7 @@ param openHttpForAll bool = false
 
 resource vnetSG 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
     name: '${vnetName}-sg'
-    location: resourceGroup().location
+    location: location
     tags: tags
     properties: {
         securityRules: concat([
