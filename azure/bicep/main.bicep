@@ -1,3 +1,6 @@
+@description('Resource location')
+param location string = resourceGroup().location
+
 @description('The name of the cluster')
 param clusterName string
 
@@ -37,9 +40,13 @@ param registryName string
 @description('The name of the Key Vault.')
 param keyVaultName string = 'oasis-enterprise'
 
+@description('Azure storage SKU type')
+param oasisStorageAccountSKU string = 'Standard_LRS'
+
 module vnet 'vnet.bicep' = {
   name: 'vnetDeploy'
   params: {
+    location: location
     vnetName: '${clusterName}-vnet'
     subnetName: '${clusterName}-snet'
     vnetAddressPrefixes: vnetAddressPrefixes
@@ -56,6 +63,7 @@ module vnet 'vnet.bicep' = {
 module identities 'identities.bicep' = {
   name: 'identities'
   params: {
+    location: location
     tags: tags
   }
 
@@ -67,6 +75,7 @@ module identities 'identities.bicep' = {
 module keyVault 'key_vault.bicep' = {
   name: 'keyVault'
   params: {
+    location: location
     keyVaultName: keyVaultName
     userAssignedIdentity: identities.outputs.userAssignedIdentity
     tags: tags
@@ -80,9 +89,11 @@ module keyVault 'key_vault.bicep' = {
 module storageAccount 'storage_account.bicep' = {
   name: 'storageAccount'
   params: {
-    userAssignedIdentity: identities.outputs.userAssignedIdentity
+    location: location
+    //userAssignedIdentity: identities.outputs.userAssignedIdentity
     keyVaultName: keyVault.outputs.keyVaultName
-    keyVaultUri: keyVault.outputs.keyVaultUri
+    //keyVaultUri: keyVault.outputs.keyVaultUri
+    oasisStorageAccountSKU: oasisStorageAccountSKU
     tags: tags
   }
 
@@ -94,6 +105,7 @@ module storageAccount 'storage_account.bicep' = {
 module aks 'aks.bicep' = {
   name: 'aksDeploy'
   params: {
+    location: location
     clusterName: clusterName
     subnetId: vnet.outputs.subnetId
     platformNodeVm: platformNodeVm
@@ -112,6 +124,7 @@ module aks 'aks.bicep' = {
 module registry 'registry.bicep' = {
   name: 'registryDeploy'
   params: {
+    location: location
     registryName: registryName
     aksPrincipalId: aks.outputs.clusterPrincipalID
     tags: tags
@@ -126,3 +139,4 @@ output oasisFsNameSecretName string = storageAccount.outputs.oasisFsNameSecretNa
 output oasisFsKeySecretName string = storageAccount.outputs.oasisFsKeySecretName
 output oasisFileShareName string = storageAccount.outputs.oasisFileShareName
 output modelsFileShareName string = storageAccount.outputs.modelsFileShareName
+output aksCluster object = aks.outputs.aksCluster

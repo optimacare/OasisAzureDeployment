@@ -1,5 +1,5 @@
 @description('Resource location')
-param location string = resourceGroup().location
+param location string
 
 @description('The virtual network name')
 param vnetName string
@@ -65,7 +65,7 @@ resource vnetSG 'Microsoft.Network/networkSecurityGroups@2021-05-01' = {
 
 resource vnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
   name: vnetName
-  location: resourceGroup().location
+  location: location
   tags: tags
   properties: {
     addressSpace: {

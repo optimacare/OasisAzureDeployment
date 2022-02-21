@@ -1,7 +1,3 @@
-# Chart default values. Override by passing --set or -f to helm.
-
-# Volumes made accessible for workers for model data or any other worker specific data.
-# Mount them in a worker by adding them to workers.volumes.
 modelVolumes:
   - name: oasis-models-azure-file
     source: azureFiles
@@ -51,27 +47,3 @@ affinity:
               values:
                 - worker
         topologyKey: "kubernetes.io/hostname"
-
-## Values to keep in sync with oasis-platform values ##
-#databases:
-#  broker:
-#    name: broker
-#    port: 5672
-#  celery_db:
-#    name: celery-db
-#    port: 5432
-#    type: postgres
-#
-#oasisServer:
-#  name: oasis-server
-#
-#volumes:
-#  host: null
-#  azureFiles:
-#    sharedFs:
-#      csi:
-#        driver: file.csi.azure.com
-#        volumeAttributes:
-#          secretName: oasis-storage-account
-#          shareName: oasisfs
-## End of sync with oasis-platform values ##

@@ -4,6 +4,20 @@ param location string = resourceGroup().location
 @description('Storage account name')
 param oasisStorageAccountName string = substring('oasis${uniqueString(resourceGroup().id)}', 0, 17)
 
+@description('Azure storage SKU type')
+@allowed([
+    'Premium_LRS'
+    'Premium_ZRS'
+    'Standard_GRS'
+    'Standard_GZRS'
+    'Standard_LRS'
+    'Standard_RAGRS'
+    'Standard_RAGZRS'
+    'Standard_ZRS'
+])
+param oasisStorageAccountSKU string = 'Standard_LRS'
+
+
 //@description('The Tenant Id that should be used throughout the deployment.')
 //param tenantId string = subscription().tenantId
 
@@ -24,7 +38,7 @@ param modelsFileShareName string = 'models'
 
 // TODO @description
 param keyVaultName string // type?
-param keyVaultUri string // type?
+//param keyVaultUri string // type?
 
 param storageAccountEncryptionKeyName string = 'oasisfs-key'
 
@@ -47,7 +61,7 @@ resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
     name: oasisStorageAccountName
     location: location
     sku: {
-        name: 'Standard_LRS' // TODO param
+        name: oasisStorageAccountSKU
     }
     kind: 'StorageV2'
     //tags: tags

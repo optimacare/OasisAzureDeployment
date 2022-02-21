@@ -145,6 +145,7 @@ az group delete --no-wait -yn <resource group>-aks
 This will do a "soft-delete" on the key vault, but to remove it permanently:
 
 ```
+az keyvault list-deleted --query '[].name' -o tsv
 az keyvault purge --name <key-vault-name>
 ```
 

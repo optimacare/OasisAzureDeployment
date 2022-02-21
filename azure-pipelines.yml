@@ -3,12 +3,27 @@
 # Add steps that build, run tests, deploy, and more:
 # https://aka.ms/yaml
 
-#trigger: none
-trigger:
-  - feature/azure-sprint-2
+trigger: none
+#trigger:
+#  - feature/azure-sprint-2
 
 pool:
   vmImage: ubuntu-latest
+
+parameters:
+  - name: deploy
+    displayName: Deploy
+    type: string
+    default: azure
+    values:
+      - azure
+      - cert-manager
+      - oasis
+      - piwind
+      - images
+      - setup
+      - piwind-model-files
+      - models
 
 resources:
   repositories:
@@ -16,113 +31,162 @@ resources:
       name: OasisLMF/OasisPlatform
       endpoint: OasisLMF
       type: github
-      ref: platform-2.0-azure-sprint-2 # ref name to use; defaults to 'refs/heads/master'.
+      ref: platform-2.0-azure-sprint-2
     - repository: OasisPiWind
       name: OasisLMF/OasisPiWind
       endpoint: OasisLMF
       type: github
       ref: master
 
+#stages:
+#  - stage: azure_infrastructure
+#    jobs:
+#      - job: first_job
+#        steps:
+#          - script: echo hejhejhej${{ parameters.image }}
+#            displayName: step
+#
+#  - stage: oasis
+#    jobs:
+#      - job: waitForValidation
+#        displayName: Wait for external validation
+#        pool: server
+#        timeoutInMinutes: 1 # job times out in 3 days
+#        steps:
+#          - task: ManualValidation@0
+#            timeoutInMinutes: 1440 # task times out in 1 day
+#            inputs:
+#              notifyUsers: |
+#                someone@example.com
+#              instructions: 'Please validate the build configuration and resume'
+#              onTimeout: 'resume'
+#      - job: first_job2
+#        steps:
+#          - script: echo hejhejhej2
+#            displayName: step
+
+#stages:
+#  - stage: azure_infrastructure
+#    jobs:
+#      - job: first_job
+#        steps:
+#          - script: echo hejhejhej
+#            displayName: step
+#
+#  - stage: oasis
+#    jobs:
+#      - job: waitForValidation
+#        displayName: Wait for external validation
+#        pool: server
+#        timeoutInMinutes: 1 # job times out in 3 days
+#        steps:
+#          - task: ManualValidation@0
+#            timeoutInMinutes: 1440 # task times out in 1 day
+#            inputs:
+#              notifyUsers: |
+#                someone@example.com
+#              instructions: 'Please validate the build configuration and resume'
+#              onTimeout: 'resume'
+#      - job: first_job2
+#        steps:
+#          - script: echo hejhejhej2
+#            displayName: step
+
 steps:
-#- checkout: self
-#  path: OasisAzureDeployment
-#- checkout: OasisPlatform
-#  path: OasisPlatform
-#- checkout: OasisPiWind
-#  path: OasisPiWind
+  - checkout: self
+    path: OasisAzureDeployment
+  - checkout: OasisPlatform
+    path: OasisPlatform
+  - checkout: OasisPiWind
+    path: OasisPiWind
 
-- script: |
-    echo "pwd:"
-    pwd
-    echo "ls:"
-    ls
-    echo "ls ..:"
-    ls ..
-  displayName: 'Check context'
+  - script: |
+      echo "pwd:"
+      pwd
+      echo "ls:"
+      ls
+      echo "ls ..:"
+      ls ..
+    displayName: 'Check context'
 
-- script: |
-
-    set -e
-    
-    cat << EOF > /tmp/settings.sh
-    LOCATION="northcentralus"
-    DNS_LABEL_NAME="oasis-enterprise-devops"
-    LETSENCRYPT_EMAIL="johan.x.nilsson@nasdaq.com"
-    OASIS_PLATFORM_DIR="$(cd ../OasisPlatform; pwd)"
-    OASIS_PIWIND_DIR="$(cd ../OasisPiWind; pwd)"
-    RESOURCE_GROUP="oasis-enterprise-devops"
-    AZURE_PARAM_FILE="/tmp/myparameters.json"
-    EOF
-    ls -l /tmp/settings.sh
-    cat /tmp/settings.sh
-    
-    cat << EOF > /tmp/myparameters.json
-    {
-      "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-      "contentVersion": "1.0.0.0",
-      "parameters": {
-        "clusterName": {
-          "value": "oasis-enterprise"
-        },
-        "platformNodeVm": {
-          "value": "Standard_B2ms"
-        },
-        "workerNodesVm": {
-          "value": "Standard_B2s"
-        },
-        "workerNodesMaxCount": {
-          "value": 2
-        },
-        "availabilityZones": {
-          "value": []
-        },
-        "workspaceTier": {
-          "value": "PerGB2018"
-        },
-        "vnetAddressPrefixes": {
-          "value": [
-            "10.240.0.0/16"
-          ]
-        },
-        "subnetAddressPrefix": {
-          "value": "10.240.0.0/20"
-        },
-        "allowedCidrRanges": {
-          "value": [
-            "213.164.193.165/32",
-            "217.73.12.1/32",
-            "217.73.13.1/32"
-          ]
-        },
-        "tags": {
-          "value": {
-            "oasis-enterprise": true
+  - task: AzureCLI@2
+    displayName: Deploy
+    inputs:
+      azureSubscription: "Azure connection"
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -e
+  
+        cat << EOF > /tmp/settings.sh
+        LOCATION="northcentralus"
+        DNS_LABEL_NAME="oasis-enterprise-devops"
+        LETSENCRYPT_EMAIL="johan.x.nilsson@nasdaq.com"
+        OASIS_PLATFORM_DIR="$(cd ../OasisPlatform; pwd)"
+        OASIS_PIWIND_DIR="$(cd ../OasisPiWind; pwd)"
+        RESOURCE_GROUP="oasis-enterprise-devops"
+        AZURE_PARAM_FILE="/tmp/myparameters.json"
+        EOF
+        ls -l /tmp/settings.sh
+        cat /tmp/settings.sh
+  
+        cat << EOF > /tmp/myparameters.json
+        {
+          "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "clusterName": {
+              "value": "oasis-enterprise"
+            },
+            "platformNodeVm": {
+              "value": "Standard_B2ms"
+            },
+            "workerNodesVm": {
+              "value": "Standard_B2s"
+            },
+            "workerNodesMaxCount": {
+              "value": 2
+            },
+            "availabilityZones": {
+              "value": []
+            },
+            "workspaceTier": {
+              "value": "PerGB2018"
+            },
+            "vnetAddressPrefixes": {
+              "value": [
+                "10.240.0.0/16"
+              ]
+            },
+            "subnetAddressPrefix": {
+              "value": "10.240.0.0/20"
+            },
+            "allowedCidrRanges": {
+              "value": [
+                "213.164.193.165/32",
+                "217.73.12.1/32",
+                "217.73.13.1/32"
+              ]
+            },
+            "tags": {
+              "value": {
+                "oasis-enterprise": true
+              }
+            },
+            "openHttpForAll": {
+              "value": true
+            },
+            "keyVaultName": {
+              "value": "oasis-enterprise-v001"
+            },
+            "oasisStorageAccountSKU": {
+              "value": "Standard_LRS"
+            }
           }
-        },
-        "openHttpForAll": {
-          "value": true
-        },
-        "keyVaultName": {
-          "value": "oasis-enterprise-v001"
         }
-      }
-    }
-    EOF
-    ls -l /tmp/myparameters.json
-    cat /tmp/myparameters.json
-
-#    cd ../OasisAzureDeployment
-#    OE_SETTINGS_FILE=/tmp/settings.sh ./deploy.sh azure
-
-  displayName: 'Deploy'
-
-- task: AzureCLI@2
-  displayName: Azure CLI
-  inputs:
-    azureSubscription: "Azure connection"
-    scriptType: bash
-    scriptLocation: inlineScript
-    inlineScript: |
-      echo "action:"
-      az group list
-      
+        EOF
+        ls -l /tmp/myparameters.json
+        cat /tmp/myparameters.json
+  
+        cd ../OasisAzureDeployment
+        OE_SETTINGS_FILE=/tmp/settings.sh ./deploy.sh ${{ parameters.deploy }}

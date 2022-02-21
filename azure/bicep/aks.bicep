@@ -126,12 +126,12 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
       }
       azureKeyvaultSecretsProvider: {
         enabled: true
-        config: {
+        /*config: {
           enableSecretRotation: 'true'
         }
         identity: {
             clientId: '8f7d93d2-56f7-4bed-a123-958f50597f9b'
-        }
+        }*/
       }
     }
   }
@@ -139,4 +139,4 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
 
 output controlPlaneFQDN string = reference('${clusterName}-aks').fqdn
 output clusterPrincipalID string = aksCluster.properties.identityProfile.kubeletidentity.objectId
-output ttttt5 object = aksCluster
+output aksCluster object = aksCluster

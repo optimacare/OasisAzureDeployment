@@ -42,6 +42,9 @@
     },
     "keyVaultName": {
       "value": "oasis-enterprise-vault"
+    },
+    "oasisStorageAccountSKU": {
+      "value": "Standard_LRS"
     }
   }
 }

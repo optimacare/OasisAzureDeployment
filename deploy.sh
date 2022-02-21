@@ -19,6 +19,7 @@ function usage {
   echo
   echo "  update-kubectl Update kubectl context cluster"
   echo "  api [ls|run <id>] Basic API commands"
+  echo "  purge-env      Remove resource groups and purge key vaults"
   echo ""
   exit 1
 }
@@ -29,6 +30,15 @@ function setup {
   echo
   echo "Overrider the default setting.sh file with OE_SETTINGS_FILE variable."
   exit 1
+}
+
+function get_bicep_parameter {
+  VALUE="$(grep -A1 "\"${1}\":" "$AZURE_PARAM_FILE" | tail -n 1 | sed 's/.*"\([^"]*\)".*$/\1/g')"
+  if [ -z "$VALUE" ]; then
+    echo "Parameter '${1} not found in $AZURE_PARAM_FILE" 1>&2
+    exit 1
+  fi
+  echo "$VALUE"
 }
 
 SCRIPT_DIR="$(cd $(dirname "$0"); pwd)"
@@ -43,14 +53,15 @@ CERT_MANAGER_CHART_VERSION="v1.7.0"
 HELM_MODELS_NAME="models"
 HELM_PLATFORM_NAME="platform"
 HELM_MONITORING_NAME="monitoring"
-AKS="oasis-enterprise-aks"
 DOMAIN=${DNS_LABEL_NAME}.${LOCATION}.cloudapp.azure.com
 ACR_NAME="acr${DNS_LABEL_NAME//[^a-z0-9]/}"             # Must be unique within Azure and alpha numeric only.
 OASIS_API_URL="https://${DOMAIN}/api"
 if [ -z "$AZURE_PARAM_FILE" ]; then
   AZURE_PARAM_FILE="${SCRIPT_DIR}/settings/azure/parameters.json"
 fi
-KEY_VAULT_NAME="$(grep -A1 '"keyVaultName":' "$AZURE_PARAM_FILE" | tail -n 1 | sed 's/.*"\([^"]*\)".*$/\1/g')"
+KEY_VAULT_NAME="$(get_bicep_parameter "keyVaultName")"
+CLUSTER_NAME="$(get_bicep_parameter "clusterName")"
+AKS="${CLUSTER_NAME}-aks"
 
 export OASIS_API_URL
 
@@ -100,7 +111,13 @@ if [ -z "$KEY_VAULT_NAME" ]; then
 fi
 
 # Make sure we are logged in
-az login
+function az_login() {
+
+  if ! az account list-locations &> /dev/null; then
+    echo "Loggin in..."
+    az login
+  fi
+}
 
 function updateKubectlCluster() {
   az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS" --overwrite-existing
@@ -128,6 +145,7 @@ function helm_deploy() {
 
 }
 
+az_login
 
 case "$DEPLOY_TYPE" in
   "azure")
@@ -190,7 +208,7 @@ case "$DEPLOY_TYPE" in
       2> /dev/null | grep -q certificaterequests.cert-manager.io; then
 
       echo "Applying cert-managers custom resource definitions..."
-      kubectl apply -f ${SCRIPT_DIR}/helm/resources/cert-manager-${CERT_MANAGER_CHART_VERSION}.crds.yaml
+      kubectl apply -f ${SCRIPT_DIR}/cert-manager/crd-dependency/cert-manager-${CERT_MANAGER_CHART_VERSION}.crds.yaml
     fi
 
     HELM_OP=""
@@ -258,9 +276,12 @@ case "$DEPLOY_TYPE" in
     echo
     echo "Update kubectl:"
     echo " $ az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS"
+    echo
+    echo "Docker login:"
+    echo " $ az acr login --name $ACR"
   ;;
   "update-kubectl"|"update-kc")
-    az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "oasis-enterprise-aks" --overwrite-existing
+    az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS" --overwrite-existing
   ;;
   "models")
     updateKubectlCluster
@@ -314,9 +335,15 @@ case "$DEPLOY_TYPE" in
           --source "$file" --path "OasisLMF/PiWind/1/$(basename $file)"
       elif [ -d "$file" ]; then
         az storage directory create --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models -n "OasisLMF/PiWind/1/$(basename $file)"
-        az storage file upload-batch --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY -s "$file" -d "models/OasisLMF/PiWind/1/$(basename $file)" --max-connections 10
+
+        PATTERN="*"
+        BASENAME="$(basename $file)"
+        if [ "$BASENAME" == "tests" ]; then
+          PATTERN="*OEDPiWind*.csv"
+        fi
+
+        az storage file upload-batch --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY -s "$file" -d "models/OasisLMF/PiWind/1/${BASENAME}" --pattern "$PATTERN"
       fi
-      echo -n .
     done
 
     for file in $OPTIONAL_MODEL_FILES; do
@@ -325,7 +352,6 @@ case "$DEPLOY_TYPE" in
         az storage file upload --account-name $OASIS_FS_ACCOUNT_NAME --account-key $OASIS_FS_ACCOUNT_KEY --share-name models \
                   --source "$file" --path "OasisLMF/PiWind/1/$(basename $file)"
       fi
-      echo -n .
     done
   ;;
   "setup")
@@ -338,6 +364,16 @@ case "$DEPLOY_TYPE" in
     ${OASIS_PLATFORM_DIR}/kubernetes/scripts/api/setup_env.sh \
           "${OASIS_PIWIND_DIR}/tests/inputs/SourceAccOEDPiWind.csv" \
           "${OASIS_PIWIND_DIR}/tests/inputs/SourceLocOEDPiWind.csv"
+  ;;
+  "purge-env")
+
+    for group in "$AKS" "$CLUSTER_NAME"; do
+      echo "Delete resource group: $group"
+      az group delete -yn "$group"
+    done
+
+    echo "Purge key vault: $KEY_VAULT_NAME"
+    az keyvault purge --name "$KEY_VAULT_NAME"
   ;;
   "api")
     export OASIS_AUTH_API=0

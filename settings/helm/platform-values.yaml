@@ -15,7 +15,6 @@ ingress:
     certificateSecret: oasis-ingress-tls
     email: ${LETSENCRYPT_EMAIL}
 
-
 oasisServer:
   oidc:
     endpoint: https://${DOMAIN}/auth/realms/oasis/protocol/openid-connect/
@@ -62,5 +61,5 @@ volumes:
         driver: file.csi.azure.com
         volumeAttributes:
           secretName: oasis-storage-account
-          shareName: oasisfs                # Replaced by Azure Deployment
-          mountOptions: "dir_mode=0777,file_mode=0777,cache=strict,actimeo=30"
+          shareName: oasisfs
+#          mountOptions: "dir_mode=0777,file_mode=0777,cache=strict,actimeo=30"
