@@ -43,6 +43,12 @@ param keyVaultName string = 'oasis-enterprise'
 @description('Azure storage SKU type')
 param oasisStorageAccountSKU string = 'Standard_LRS'
 
+@description('Name of resource group for aks node')
+param nodeResourceGroup string
+
+// TODO
+param currentUserObjectId string = ''
+
 module vnet 'vnet.bicep' = {
   name: 'vnetDeploy'
   params: {
@@ -64,6 +70,7 @@ module identities 'identities.bicep' = {
   name: 'identities'
   params: {
     location: location
+    clusterName: clusterName
     tags: tags
   }
 
@@ -78,6 +85,7 @@ module keyVault 'key_vault.bicep' = {
     location: location
     keyVaultName: keyVaultName
     userAssignedIdentity: identities.outputs.userAssignedIdentity
+    currentUserObjectId: currentUserObjectId
     tags: tags
   }
 
@@ -112,6 +120,7 @@ module aks 'aks.bicep' = {
     workerNodesVm: workerNodesVm
     workerNodesMaxCount: workerNodesMaxCount
     availabilityZones: availabilityZones
+    nodeResourceGroup: nodeResourceGroup
     workspaceTier: workspaceTier
     tags: tags
   }

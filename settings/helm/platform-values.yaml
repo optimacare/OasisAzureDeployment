@@ -14,6 +14,8 @@ ingress:
     strategy: 'letsencrypt'
     certificateSecret: oasis-ingress-tls
     email: ${LETSENCRYPT_EMAIL}
+    server: https://acme-v02.api.letsencrypt.org/directory
+#    server: https://acme-staging-v02.api.letsencrypt.org/directory # Stage server
 
 oasisServer:
   oidc:
@@ -62,4 +64,3 @@ volumes:
         volumeAttributes:
           secretName: oasis-storage-account
           shareName: oasisfs
-#          mountOptions: "dir_mode=0777,file_mode=0777,cache=strict,actimeo=30"
