@@ -19,7 +19,6 @@ parameters:
       - azure
       - oasis
       - images
-      - custom
 
 resources:
   repositories:
@@ -53,4 +52,4 @@ steps:
         set -e
 
         cd ../OasisAzureDeployment
-        OE_SETTINGS_FILE=settings/mysettings.sh ./deploy.sh ${{ parameters.deploy }}
+        OE_SETTINGS_FILE=settings/settings.sh ./deploy.sh ${{ parameters.deploy }}

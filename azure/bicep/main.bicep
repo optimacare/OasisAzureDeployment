@@ -46,7 +46,7 @@ param oasisStorageAccountSKU string = 'Standard_LRS'
 @description('Name of resource group for aks node')
 param nodeResourceGroup string
 
-// TODO
+@description('Current user object id - if set will add access for this user to the key vault')
 param currentUserObjectId string = ''
 
 module vnet 'vnet.bicep' = {

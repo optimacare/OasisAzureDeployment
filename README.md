@@ -40,8 +40,6 @@ Then we need to set a few requires settings for our Azure environment. It is hig
 |--------------------------------|--------------------|
 | settings/settings.sh           | DNS_LABEL_NAME     |
 | settings/settings.sh           | LETSENCRYPT_EMAIL  |
-| settings/settings.sh           | OASIS_PLATFORM_DIR |
-| settings/settings.sh           | OASIS_PIWIND_DIR   |
 | settings/azure/parameters.json | allowedCidrRanges  |
 
 More details about each setting is found below or in the file.
@@ -60,15 +58,17 @@ The file `settings/azure/parameters.json` contains Azure specific parameters lik
 
 A short summary of the most interesting ones:
 
-| Name              | Description                                                                                                                                                                                                                                                                                                                                                 |
-|-------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| allowedCidrRanges | Whitelisted [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) ranges - only these will be able to connect over HTTPS. Make sure to include the range/IP from where you will access the azure domain. The adress provided by [whatsmyip](https://www.whatsmyip.org) might work, but not always depending on your network access to Azure. |
-| openHttpForAll    | When set to `true` this will open up HTTP access without any filtering and redirect all requests to HTTPS. There are 2 reasons to have this open:<br>1. It is required for letsencrypt to create a valid TLS certificate.<br>2. Help some browsers to find the HTTPS service.                                                                               |
-| availabilityZones | List of availability zones to use in this Azure location.                                                                                                                                                                                                                                                                                                   |
-| platformNodeVm    | Type of Virtual Machine to use for the AKS platform node (run everything except for worker pods)                                                                                                                                                                                                                                                            |
-| workerNodesVm     | Type of Virtual Machine to use for AKS worker nodes.                                                                                                                                                                                                                                                                                                        |
-| clusterName       | AKS cluster name                                                                                                                                                                                                                                                                                                                                            |
-| tags              | Tags to attach to all resources created                                                                                                                                                                                                                                                                                                                     |
+| Name                   | Description                                                                                                                                                                                                                                                                                                                                                 |
+|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| allowedCidrRanges      | Whitelisted [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) ranges - only these will be able to connect over HTTPS. Make sure to include the range/IP from where you will access the azure domain. The adress provided by [whatsmyip](https://www.whatsmyip.org) might work, but not always depending on your network access to Azure. |
+| openHttpForAll         | When set to `true` this will open up HTTP access without any filtering and redirect all requests to HTTPS. There are 2 reasons to have this open:<br>1. It is required for letsencrypt to create a valid TLS certificate.<br>2. Help some browsers to find the HTTPS service.                                                                               |
+| availabilityZones      | List of availability zones to use in this Azure location.                                                                                                                                                                                                                                                                                                   |
+| platformNodeVm         | Type of Virtual Machine to use for the AKS platform node (run everything except for worker pods)                                                                                                                                                                                                                                                            |
+| workerNodesVm          | Type of Virtual Machine to use for AKS worker nodes.                                                                                                                                                                                                                                                                                                        |
+| clusterName            | AKS cluster name                                                                                                                                                                                                                                                                                                                                            |
+| tags                   | Tags to attach to all resources created                                                                                                                                                                                                                                                                                                                     |
+| keyVaultName           | Name of key vault to store secrets in                                                                                                                                                                                                                                                                                                                       |
+| oasisStorageAccountSKU | Storage account disk class                                                                                                                                                                                                                                                                                                                                  |
 
 #### Helm settings
 
@@ -93,7 +93,7 @@ Once you have logged into [Azure Devops](https://dev.azure.com):
    3. Click **New service connection**.
    4. Select **Azure Resource Manager** and click **Next**.
    5. Select *Service principal (automatic)** and click **Next**.
-   6. Select your subscription, give the service connection name `Azure Connection` and click **Save**.
+   6. Select your subscription, give the service connection name `Azure Connection`, check **Grant access permission to all pipelines** and click **Save**.
 3. Set up the pipeline service principal access:
    1. Open the default pipeline by clicking **Pipelines** in menu to the left and then the first pipeline in the list.
    2. Click **Run pipeline**.
@@ -102,7 +102,7 @@ Once you have logged into [Azure Devops](https://dev.azure.com):
    5. Click **Run**. This will create your resource groups set in your `settings.sh` file. In case you get a permission denied error, click the **Permission needed** link and **Permit**. The pipeline will continue after this. Wait for it to finish creating our resource group.
 4. Give pipeline ownership of the resource group:
    1. Once again go to **Project settings**, **Service connections** and click **Azure Connection**.
-   2. Click the link **Manage Service Principal**, copy the **Display name**.
+   2. Click the link **Manage Service Principal** which opens a new window/tab to the Azure portal. Copy the **Display name**.
    3. In the Azure Portal go to **Resource groups** - search in the top.
    4. Select the resource group name you defined in your configuration.
    5. Click **Access control (IAM)** and then **Add role assignment** in **Grant access to this resource**.
@@ -118,8 +118,10 @@ We do now have our resource group created and a pipeline ready. Please note that
 
 Let's deploy the infrastructure and oasis:
 
-1. From your projects pipeline page click **Run pipeline**.
-2. Select **base** as **Deploy** and click **Run**. 
+1. In Azure DevOps click **Pipelines** in the menu to the left to bring up your pipelines.
+2. The list should at this point only contain one, click that one.
+3. Click **Run pipeline** in the top right.
+4. Select **base** as **Deploy** and click **Run**. 
 
 This will deploy:
  - Azure resources as virtual network, AKS, ACR etc.
@@ -127,7 +129,7 @@ This will deploy:
  - Build and push oasis server and worker images from OasisPlatform/platform-2.0.
  - Oasis Helm charts for the platform.
 
-This initialization deployment may take up to 20 minutes to run. You can follow the progress by opening up the job and view the **Deploy** task output.
+This initialization deployment may take about 20 minutes to run. You can follow the progress by opening up the job and view the **Deploy** task output. The deployment of Azure resources can be monitored in the Azure Portal under **Deployments** in your resource group.
 
 At the end it prints a summary of resource names and URLs. It might take a few minutes more before those URLs are accessible due to the time kubernetes needs to initialize the Oasis platform.
 
@@ -397,6 +399,11 @@ kubectl delete certificate oasis-ingress-tls
 
 Wait another 30 seconds. If it still is `False` read the [troubleshooting guide](https://cert-manager.io/docs/faq/acme/) to investigate the request.
 
+### Base / Azure deployment gets stuck
+
+Go to the Azure Portal -> Resource Groups -> <your group> -> Deployments to look for details about the deployment process.
+
+I have encountered errors in the AKS deployment such as **Gateway timeout** and **Internal server error**. I suspect this is some error on Azures side and not with the bicep script itself. Try change location if you can, that usually solves the issue.
 
 # 6 - Questions about design
 

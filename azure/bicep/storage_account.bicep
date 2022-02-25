@@ -17,36 +17,28 @@ param oasisStorageAccountName string = substring('oasis${uniqueString(resourceGr
 ])
 param oasisStorageAccountSKU string = 'Standard_LRS'
 
-
-//@description('The Tenant Id that should be used throughout the deployment.')
-//param tenantId string = subscription().tenantId
-
 @description('Tags for the resources')
 param tags object
 
-@description('Name of the key in the Key Vault') // TODO
+@description('Name of secret to store name of storage account')
 param oasisFsNameSecretName string = 'oasisfs-name'
 
+@description('Name of secret to store key to storage account')
 param oasisFsKeySecretName string = 'oasisfs-key'
 
+@description('Shared files name for oasis shared file system')
 param oasisFileShareName string = 'oasisfs'
 
+@description('Shared files name for model files')
 param modelsFileShareName string = 'models'
 
-//@description('Name of the key in the Key Vault')
-//param encryptionKeyName string = 'oasisfs'
-
-// TODO @description
-param keyVaultName string // type?
-//param keyVaultUri string // type?
+@description('Name of key vault')
+param keyVaultName string
 
 param storageAccountEncryptionKeyName string = 'oasisfs-key'
 
-// TODO
-//param userAssignedIdentity object
-
+/* TODO
 resource kvKey 'Microsoft.KeyVault/vaults/keys@2021-06-01-preview' = {
-  //parent: keyVault
   name: '${keyVaultName}/${storageAccountEncryptionKeyName}'
   properties: {
     attributes: {
@@ -55,7 +47,7 @@ resource kvKey 'Microsoft.KeyVault/vaults/keys@2021-06-01-preview' = {
     keySize: 4096
     kty: 'RSA'
   }
-}
+}*/
 
 resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
     name: oasisStorageAccountName
@@ -64,13 +56,7 @@ resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
         name: oasisStorageAccountSKU
     }
     kind: 'StorageV2'
-    //tags: tags
-    /*identity: {
-        type: 'UserAssigned'
-        userAssignedIdentities: {
-            '${userAssignedIdentity.id}': {}
-        }
-    }*/
+    tags: tags
     properties: {
         accessTier: 'Hot'
         allowBlobPublicAccess: false
@@ -96,7 +82,6 @@ resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
 
 resource sharedFsSecret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' = {
   name: '${keyVaultName}/${oasisFsKeySecretName}'
-  //parent: keyVault
   tags: tags
   properties: {
     attributes: {
@@ -108,7 +93,6 @@ resource sharedFsSecret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' =
 
 resource sharedFsNameSecret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' = {
   name: '${keyVaultName}/${oasisFsNameSecretName}'
-  //parent: keyVault
   tags: tags
   properties: {
     attributes: {

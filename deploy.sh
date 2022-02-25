@@ -69,6 +69,9 @@ AKS="${CLUSTER_NAME}-aks"
 AKS_RESOURCE_GROUP="${RESOURCE_GROUP}-aks"
 PORT_FORWARDING_LOCAL_PORT=8009
 
+OASIS_PLATFORM_DIR="${OASIS_PLATFORM_DIR:-$(cd ${SCRIPT_DIR}/../OasisPlatform; pwd)}"
+OASIS_PIWIND_DIR="${OASIS_PIWIND_DIR:-$(cd ${SCRIPT_DIR}/../OasisPiWind; pwd)}"
+
 export OASIS_API_URL
 
 for evname in LOCATION DNS_LABEL_NAME RESOURCE_GROUP OASIS_PLATFORM_DIR OASIS_PIWIND_DIR LETSENCRYPT_EMAIL; do
@@ -132,7 +135,6 @@ function updateKubectlCluster() {
   az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$CLUSTER_NAME" --overwrite-existing --only-show-errors
 }
 
-
 function helm_deploy() {
 
   HELM_OP=""
@@ -166,7 +168,7 @@ function kill_processes {
         kill $pid
       fi
     done
-    count=$(($count + 1))
+    count=$((count + 1))
   done
 
   for pid in $@; do
@@ -175,7 +177,6 @@ function kill_processes {
     fi
   done
 }
-
 
 function stop_port_forward() {
 

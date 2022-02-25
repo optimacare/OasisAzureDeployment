@@ -25,7 +25,7 @@ Released on 2022-02-25
 **Features included:**
 * Bicep templates and Helm chart values updated to include:
   * Storage account and 2 file shares: oasisfs and models.
-  * Place worker on worker nodes:
+  * Place worker on worker nodes.
   * Support scaling of worker nodes.
   * Key vault to store storage account key.
   * General cleanup and improvements regarding naming.
