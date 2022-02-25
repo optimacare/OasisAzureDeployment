@@ -257,6 +257,8 @@ case "$DEPLOY_TYPE" in
   ;;
   "images")
 
+    echo "Deploying OasisPlatform images..."
+
     # Build and push images
 
     ACR=$(az acr show -g "$RESOURCE_GROUP" -n "$ACR_NAME" --query "loginServer" -o tsv)
@@ -302,6 +304,8 @@ case "$DEPLOY_TYPE" in
   ;;
   "cert-manager")
 
+    echo "Deploying cert-manager..."
+
     updateKubectlCluster
 
     # Check if cert-managers custom resource definitions exists
@@ -312,7 +316,7 @@ case "$DEPLOY_TYPE" in
       echo "Applying cert-managers custom resource definitions..."
       kubectl apply -f ${SCRIPT_DIR}/cert-manager/crd-dependency/cert-manager-${CERT_MANAGER_CHART_VERSION}.crds.yaml
     fi
-    env
+
     HELM_OP=""
     if ! helm status -n $CERT_MANAGER_NAMESPACE cert-manager &> /dev/null; then
 
@@ -338,6 +342,8 @@ case "$DEPLOY_TYPE" in
       -f settings/helm/cert-manager-values.yaml
   ;;
   "oasis")
+
+    echo "Deploying oasis..."
 
     echo "Retrieving oasis storage account name and keys"
 
@@ -382,21 +388,29 @@ case "$DEPLOY_TYPE" in
   ;;
   "models")
 
-    echo "Deploying nodels..."
-    ps
+    echo "Deploying models..."
 
     updateKubectlCluster
     helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml ${SCRIPT_DIR}/settings/helm/models-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-models/" "$HELM_MODELS_NAME"
 
-    # Make sure the model is available before creating analyses for it
-    echo -n "Waiting for model to be registered: "
-    while ! $0 api ls model | grep -qi oasislmf-piwind-1; do
-      echo -n "."
-      sleep 1
+    echo "Waiting for models to be registered: "
+    MODELS=$(grep modelId "${SCRIPT_DIR}/settings/helm/models-values.yaml" | sed 's/^[- \t]*modelId:[ ]*\([^ #]*\).*/\1/')
+
+    for model in $MODELS; do
+      echo -n "$model..."
+      while ! $0 api ls model | grep -qi "$model"; do
+        echo -n "."
+        sleep 1
+      done
+      echo
     done
+
     echo "Models deployed"
   ;;
   "monitoring")
+
+    echo "Deploying monitoring..."
+
     updateKubectlCluster
     helm_deploy "${SCRIPT_DIR}/settings/helm/monitoring-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-monitoring/" "$HELM_MONITORING_NAME"
   ;;
@@ -443,8 +457,8 @@ case "$DEPLOY_TYPE" in
           PATTERN="*OEDPiWind*.csv"
         fi
 
-        # shellcheck disable=SC2086
-        az storage file upload-batch --account-name "$OASIS_FS_ACCOUNT_NAME" --account-key $OASIS_FS_ACCOUNT_KEY -s "$file" -d "models/OasisLMF/PiWind/1/${BASENAME}" --pattern "$PATTERN"
+        az storage file upload-batch --account-name "$OASIS_FS_ACCOUNT_NAME" --account-key $OASIS_FS_ACCOUNT_KEY \
+         -s "$file" -d "models/OasisLMF/PiWind/1/${BASENAME}" --pattern "$PATTERN"
       fi
     done
 
