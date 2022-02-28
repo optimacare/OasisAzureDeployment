@@ -359,6 +359,10 @@ case "$DEPLOY_TYPE" in
     updateKubectlCluster
     helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-platform/" "$HELM_PLATFORM_NAME" \
       --set "azure.storageAccounts.oasisfs.accountName=${OASIS_FS_ACCOUNT_NAME}" --set "azure.storageAccounts.oasisfs.accountKey=${OASIS_FS_ACCOUNT_KEY}"
+
+    echo "Waiting for controller to become ready..."
+    kubectl wait --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=120s
+
     echo "Environment: https://${DOMAIN}"
   ;;
   "summary")
