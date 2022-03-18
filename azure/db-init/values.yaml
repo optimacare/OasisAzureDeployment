@@ -1,0 +1,20 @@
+images:
+  image: alpine
+  version: 3.15
+
+azure:
+  tenantId: "" # Set by deployment
+  secretProvider:
+    keyvaultName: "" # Set by deployment
+    userAssignedIdentityClientID: "" # Set by deployment
+    secrets:
+      - oasis-db-server-name
+      - oasis-db-server-host
+      - oasis-db-server-admin-username
+      - oasis-db-server-admin-password
+      - oasis-db-username
+      - oasis-db-password
+      - keycloak-db-username
+      - keycloak-db-password
+      - celery-db-username
+      - celery-db-password

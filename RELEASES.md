@@ -41,3 +41,19 @@ Released on 2022-02-25
   * Deploy without using pipeline
   * Cleanup and troubleshoot
 
+## Sprint 3
+
+Released on 2022-03-18
+
+**Features included:**
+* Bicep templates and Helm chart values updated to include:
+  * Postgresql databases (oasis, keycloak, celery)
+  * Redis instance for celery
+  * Private endpoints for secure communication with databases.
+  * New small helm chart introduces to initialize databases (create users and set password)
+* Deploy script updated:
+  * Creates database users (Azure only supports setting credentials for admin user)
+* Updated charts in `OasisPlatform`:
+  * Support postgresql and redis databases in Azure.
+  * Read secrets from Azure Key Store (usernames and passwords)
+* Updated deployment instructions (README.md)

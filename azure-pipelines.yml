@@ -26,7 +26,7 @@ resources:
       name: OasisLMF/OasisPlatform
       endpoint: OasisLMF
       type: github
-      ref: platform-2.0-azure-sprint-2
+      ref: platform-2.0-azure-sprint-3
     - repository: OasisPiWind
       name: OasisLMF/OasisPiWind
       endpoint: OasisLMF

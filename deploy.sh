@@ -3,12 +3,13 @@
 set -e
 
 function usage {
-  echo "Usage: $0 [resource-group|base|azure|images|cert-manager|oasis|summary|piwind|piwindmodel-files|analyses|models|monitoring]"
+  echo "Usage: $0 [resource-group|base|azure|db-init|images|cert-manager|oasis|summary|piwind|piwindmodel-files|analyses|models|monitoring]"
   echo
   echo "  resource-group Create the resource group in Azure to be used for the Oasis platform"
   echo
-  echo "  base           Deploys the platform by running azure, images, cert-manager, oasis, monitoring and summary"
+  echo "  base           Deploys the platform by running azure, db-init, images, cert-manager, oasis, monitoring and summary"
   echo "  azure          Deploys Azure resources by bicep templates"
+  echo "  db-init        Initialize database users"
   echo "  images         Builds and push server/worker images from OasisPlatform to ACR"
   echo "  cert-manager   Installs cert-manager"
   echo "  oasis          Installs Oasis"
@@ -23,7 +24,7 @@ function usage {
   echo
   echo "  update-kubectl Update kubectl context cluster"
   echo "  api [ls|run <id>] Basic Oasis API commands"
-  echo "  purge-env      Remove resource groups and purge key vaults"
+  echo "  purge [resource-group|resources]      Remove resource groups and purge key vaults"
   echo ""
   exit 1
 }
@@ -128,7 +129,7 @@ function az_login() {
   fi
 }
 
-function updateKubectlCluster() {
+function update_kubectl_cluster() {
 
   echo "Updating kubectl cluster"
 
@@ -209,11 +210,34 @@ function cleanup() {
 
 trap cleanup EXIT SIGINT
 
+function get_secret {
+  VALUE="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$1" --query "value" -o tsv)"
+
+  if [ -z "$VALUE" ]; then
+    echo "No secret found by name $1" 1>&2
+    exit 1
+  fi
+
+  echo $VALUE
+}
+
+function get_or_generate_secret {
+
+  if ! az keyvault secret list --vault-name "$KEY_VAULT_NAME" --query "[].name" -o tsv | grep -q "$1"; then
+    echo "Generating secret $1..." 1>&2
+
+    az keyvault secret set --vault-name "$KEY_VAULT_NAME" --name "$1" --value "$(< /dev/urandom tr -dc '_A-Z-a-z-0-9#=?+-' | head -c32)" --query "value" -o tsv
+  else
+    az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name "$1" --query "value" -o tsv
+  fi
+}
+
 az_login
 
 case "$DEPLOY_TYPE" in
   "base")
     $0 azure
+    $0 db-init
     $0 images
     $0 cert-manager
     $0 oasis
@@ -221,8 +245,6 @@ case "$DEPLOY_TYPE" in
     $0 summary
   ;;
   "custom")
-#    $0 models
-#    $0 analyses
   ;;
   "piwind")
     $0 piwind-model-files
@@ -232,6 +254,9 @@ case "$DEPLOY_TYPE" in
   "resource-group"|"resource-groups")
     echo "Creating resource group: $RESOURCE_GROUP"
     az group create --name "$RESOURCE_GROUP" --location "$LOCATION" --tags oasis-enterprise=True
+
+    az feature register --name EnablePodIdentityPreview --namespace Microsoft.ContainerService
+    az extension add --name aks-preview
   ;;
   "azure")
 
@@ -256,13 +281,46 @@ case "$DEPLOY_TYPE" in
      --parameter "currentUserObjectId=${CURRENT_USER_OBJECT_ID}" \
      --verbose
   ;;
-  "images")
+  "db-init")
 
-    echo "Deploying OasisPlatform images..."
+    oasis_db_password=$(get_or_generate_secret "oasis-db-password")
+    keycloak_db_password=$(get_or_generate_secret "keycloak-db-password")
+    celery_db_password=$(get_or_generate_secret "celery-db-password")
 
-    # Build and push images
 
-    ACR=$(az acr show -g "$RESOURCE_GROUP" -n "$ACR_NAME" --query "loginServer" -o tsv)
+    KEY_VAULT_TENANT_ID="$(az keyvault show --name "${KEY_VAULT_NAME}" --query 'properties.tenantId' -o tsv)"
+    if [ -z "$KEY_VAULT_TENANT_ID" ]; then echo "No key vault tenant id found"; exit 1; fi
+
+    AKS_IDENTITY_CLIENT_ID="$(az aks list --resource-group $RESOURCE_GROUP --query "[?name == 'oasis-enterprise'].identityProfile.kubeletidentity.clientId" -o tsv)"
+    if [ -z "$AKS_IDENTITY_CLIENT_ID" ]; then echo "No aks identify client id found"; exit 1; fi
+
+
+    update_kubectl_cluster
+
+    if helm status db-init &> /dev/null; then
+
+      helm uninstall db-init
+    fi
+
+    helm install db-init azure/db-init \
+      --set "azure.tenantId=${KEY_VAULT_TENANT_ID}" \
+      --set "azure.secretProvider.keyvaultName=${KEY_VAULT_NAME}" \
+      --set "azure.secretProvider.userAssignedIdentityClientID=${AKS_IDENTITY_CLIENT_ID}"
+
+    echo "Waiting for db init job to complete..."
+    kubectl wait --for=condition=complete --timeout=60s job/db-init
+
+    echo "Completed, job output:"
+    kubectl logs job/db-init
+
+    echo "Clean up job..."
+    helm uninstall db-init
+  ;;
+  "image"|"images")
+
+    if [ -z "$ACR" ]; then
+      export ACR=$(az acr show -g "$RESOURCE_GROUP" -n "$ACR_NAME" --query "loginServer" -o tsv)
+    fi
 
     if [ -z "$ACR" ]; then
       echo "No ACR found"
@@ -273,41 +331,62 @@ case "$DEPLOY_TYPE" in
       az acr login --name $ACR
     fi
 
-    pushd "${OASIS_PLATFORM_DIR}/"
+    echo "Deploying OasisPlatform images..."
 
-    # Docker COPY issue https://github.com/moby/moby/issues/37965 - adds RUN true between COPY
-    if [ "$TRUST_PIP_HOSTS" == "1" ]; then
-      sed 's/pip install/pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org/g' < Dockerfile.api_server | \
-        sed 's/^COPY/RUN true\nCOPY/g' | \
-        docker build -f - -t "${ACR}/coreoasis/api_server:dev" .
-    else
-      sed 's/^COPY/RUN true\nCOPY/g' < Dockerfile.api_server | \
+    case "$2" in
+    "server")
+
+      pushd "${OASIS_PLATFORM_DIR}/"
+
+      # Docker COPY issue https://github.com/moby/moby/issues/37965 - adds RUN true between COPY
+      if [ "$TRUST_PIP_HOSTS" == "1" ]; then
+        sed 's/pip install/pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org/g' < Dockerfile.api_server | \
+          sed 's/^COPY/RUN true\nCOPY/g' | \
           docker build -f - -t "${ACR}/coreoasis/api_server:dev" .
-    fi
-    docker push "${ACR}/coreoasis/api_server:dev"
+      else
+        sed 's/^COPY/RUN true\nCOPY/g' < Dockerfile.api_server | \
+            docker build -f - -t "${ACR}/coreoasis/api_server:dev" .
+      fi
 
-    if [ "$TRUST_PIP_HOSTS" == "1" ]; then
-      sed 's/pip3 install/pip3 install --trusted-host pypi.org --trusted-host files.pythonhosted.org/g' < Dockerfile.model_worker | \
-        sed 's/^COPY/RUN true\nCOPY/g' | \
-        sed 's/^FROM ubuntu:20.10/FROM ubuntu:20.04/g' | \
-        docker build -f - -t "${ACR}/coreoasis/model_worker:dev" .
-    else
-       sed 's/^COPY/RUN true\nCOPY/g' < Dockerfile.model_worker | \
+      docker push "${ACR}/coreoasis/api_server:dev"
+    ;;
+    "worker-controller")
+
+      pushd "${OASIS_PLATFORM_DIR}/"
+
+      pushd "${OASIS_PLATFORM_DIR}/kubernetes/worker-controller"
+      docker build -t "${ACR}/coreoasis/worker_controller:dev" \
+       --build-arg PIP_TRUSTED_HOSTS="pypi.org files.pythonhosted.org" .
+      docker push "${ACR}/coreoasis/worker_controller:dev"
+    ;;
+    "worker")
+
+      pushd "${OASIS_PLATFORM_DIR}/"
+
+      if [ "$TRUST_PIP_HOSTS" == "1" ]; then
+        sed 's/pip3 install/pip3 install --trusted-host pypi.org --trusted-host files.pythonhosted.org/g' < Dockerfile.model_worker | \
+          sed 's/^COPY/RUN true\nCOPY/g' | \
           sed 's/^FROM ubuntu:20.10/FROM ubuntu:20.04/g' | \
           docker build -f - -t "${ACR}/coreoasis/model_worker:dev" .
-    fi
-    docker push "${ACR}/coreoasis/model_worker:dev"
-
-    pushd "${OASIS_PLATFORM_DIR}/kubernetes/worker-controller"
-    docker build -t "${ACR}/coreoasis/worker_controller:dev" \
-     --build-arg PIP_TRUSTED_HOSTS="pypi.org files.pythonhosted.org" .
-    docker push "${ACR}/coreoasis/worker_controller:dev"
+      else
+         sed 's/^COPY/RUN true\nCOPY/g' < Dockerfile.model_worker | \
+            sed 's/^FROM ubuntu:20.10/FROM ubuntu:20.04/g' | \
+            docker build -f - -t "${ACR}/coreoasis/model_worker:dev" .
+      fi
+      docker push "${ACR}/coreoasis/model_worker:dev"
+    ;;
+    *)
+      $0 image server
+      $0 image worker-controller
+      $0 image worker
+      ;;
+    esac
   ;;
   "cert-manager")
 
     echo "Deploying cert-manager..."
 
-    updateKubectlCluster
+    update_kubectl_cluster
 
     # Check if cert-managers custom resource definitions exists
 
@@ -340,7 +419,7 @@ case "$DEPLOY_TYPE" in
       --namespace $CERT_MANAGER_NAMESPACE \
       --create-namespace \
       --version $CERT_MANAGER_CHART_VERSION \
-      -f settings/helm/cert-manager-values.yaml
+      -f ${SCRIPT_DIR}/settings/helm/cert-manager-values.yaml
   ;;
   "oasis")
 
@@ -348,17 +427,34 @@ case "$DEPLOY_TYPE" in
 
     echo "Retrieving oasis storage account name and keys"
 
-    OASIS_FS_ACCOUNT_NAME="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name oasisfs-name --query "value" -o tsv)"
-    OASIS_FS_ACCOUNT_KEY="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name oasisfs-key --query "value" -o tsv)"
+    OASIS_FS_ACCOUNT_NAME="$(get_secret oasisfs-name)"
+    OASIS_FS_ACCOUNT_KEY="$(get_secret oasisfs-key)"
 
     if [[ -z "$OASIS_FS_ACCOUNT_NAME" ]] || [[ -z "$OASIS_FS_ACCOUNT_KEY" ]]; then
       echo "Could not retrieve account name/key for file share"
       exit 1
     fi
 
-    updateKubectlCluster
+    KEY_VAULT_TENANT_ID="$(az keyvault show --name ${KEY_VAULT_NAME} --query 'properties.tenantId' -o tsv)"
+    if [ -z "$KEY_VAULT_TENANT_ID" ]; then echo "No key vault tenant id found"; exit 1; fi
+
+    AKS_IDENTITY_CLIENT_ID="$(az aks list --resource-group $RESOURCE_GROUP --query "[?name == 'oasis-enterprise'].identityProfile.kubeletidentity.clientId" -o tsv)"
+    if [ -z "$AKS_IDENTITY_CLIENT_ID" ]; then echo "No aks client id found"; exit 1; fi
+
+    OASIS_DATABASE_HOST="$(get_secret oasis-db-server-host)"
+    CELERY_REDIS_HOST="$(get_secret celery-redis-server-host)"
+
+    update_kubectl_cluster
     helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-platform/" "$HELM_PLATFORM_NAME" \
-      --set "azure.storageAccounts.oasisfs.accountName=${OASIS_FS_ACCOUNT_NAME}" --set "azure.storageAccounts.oasisfs.accountKey=${OASIS_FS_ACCOUNT_KEY}"
+      --set "azure.storageAccounts.oasisfs.accountName=${OASIS_FS_ACCOUNT_NAME}" \
+      --set "azure.storageAccounts.oasisfs.accountKey=${OASIS_FS_ACCOUNT_KEY}" \
+      --set "azure.tenantId=${KEY_VAULT_TENANT_ID}" \
+      --set "azure.secretProvider.keyvaultName=${KEY_VAULT_NAME}" \
+      --set "azure.secretProvider.userAssignedIdentityClientID=${AKS_IDENTITY_CLIENT_ID}" \
+      --set "databases.keycloak_db.host=${OASIS_DATABASE_HOST}" \
+      --set "databases.oasis_db.host=${OASIS_DATABASE_HOST}" \
+      --set "databases.celery_db.host=${OASIS_DATABASE_HOST}" \
+      --set "databases.channel_layer.host=${CELERY_REDIS_HOST}"
 
     echo "Waiting for controller to become ready..."
     kubectl wait --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=120s
@@ -395,7 +491,7 @@ case "$DEPLOY_TYPE" in
 
     echo "Deploying models..."
 
-    updateKubectlCluster
+    update_kubectl_cluster
     helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml ${SCRIPT_DIR}/settings/helm/models-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-models/" "$HELM_MODELS_NAME"
 
     echo "Waiting for models to be registered: "
@@ -416,7 +512,7 @@ case "$DEPLOY_TYPE" in
 
     echo "Deploying monitoring..."
 
-    updateKubectlCluster
+    update_kubectl_cluster
     helm_deploy "${SCRIPT_DIR}/settings/helm/monitoring-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-monitoring/" "$HELM_MONITORING_NAME"
   ;;
   "piwind-model-files"|"piwind-model_files")
@@ -477,7 +573,7 @@ case "$DEPLOY_TYPE" in
   ;;
   "analyses")
 
-    updateKubectlCluster
+    update_kubectl_cluster
     start_port_forward
 
     ${OASIS_PLATFORM_DIR}/kubernetes/scripts/api/setup_env.sh \
@@ -486,16 +582,33 @@ case "$DEPLOY_TYPE" in
 
     stop_port_forward
   ;;
-  "purge-env")
+  "purge")
 
-    echo "Delete resource group: $RESOURCE_GROUP"
-    az group delete -yn "$RESOURCE_GROUP"
+    case "$2" in
+    "group"|"groups"|"resource-group")
+      echo "Delete resource group: $RESOURCE_GROUP"
+      az group delete -yn "$RESOURCE_GROUP"
+    ;;
+    "resources")
+      resources="$(az resource list --resource-group "$RESOURCE_GROUP" | grep id | awk -F \" '{print $4}')"
 
-    echo "Purge key vault: $KEY_VAULT_NAME"
-    az keyvault purge --name "$KEY_VAULT_NAME"
+      set +e
+      for id in $resources; do
+        az resource delete --resource-group "$RESOURCE_GROUP" --ids "$id" --verbose
+      done
+      set -e
+
+      for id in $resources; do
+        az resource delete --resource-group "$RESOURCE_GROUP" --ids "$id" --verbose
+      done
+    ;;
+    *)
+      echo "$0 purge [group|resources]"
+      exit 0
+    esac
   ;;
   "api")
-    updateKubectlCluster
+    update_kubectl_cluster
     start_port_forward
 
     ${OASIS_PLATFORM_DIR}/kubernetes/scripts/api/api.sh "${@:2}"

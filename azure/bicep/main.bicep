@@ -49,12 +49,21 @@ param nodeResourceGroup string
 @description('Current user object id - if set will add access for this user to the key vault')
 param currentUserObjectId string = ''
 
+@description('Password for admin user')
+param oasisServerAdminPassword string
+
+@description('Name of virtual network')
+param vnetName string = '${clusterName}-vnet'
+
+@description('Name of sub network')
+param subnetName string = '${clusterName}-snet'
+
 module vnet 'vnet.bicep' = {
   name: 'vnetDeploy'
   params: {
     location: location
-    vnetName: '${clusterName}-vnet'
-    subnetName: '${clusterName}-snet'
+    vnetName: vnetName
+    subnetName: subnetName
     vnetAddressPrefixes: vnetAddressPrefixes
     subnetAddressPrefix: subnetAddressPrefix
     allowedCidrRanges: allowedCidrRanges
@@ -94,13 +103,44 @@ module keyVault 'key_vault.bicep' = {
   ]
 }
 
+module oasisPostgresqlDb 'postgresql.bicep' = {
+  name: 'oasisPostgresqlDb'
+  params: {
+    location: location
+    tags: tags
+    keyVaultName: keyVault.outputs.keyVaultName
+    oasisServerAdminPassword: oasisServerAdminPassword
+    vnetName: vnetName
+    subnetName: subnetName
+  }
+
+  dependsOn: [
+    vnet
+  ]
+}
+
+module celeryRedis 'redis.bicep' = {
+  name: 'celeryRedis'
+  params: {
+    location: location
+    tags: tags
+    keyVaultName: keyVault.outputs.keyVaultName
+    vnetName: vnetName
+    subnetName: subnetName
+  }
+
+  dependsOn: [
+    vnet
+  ]
+}
+
 module storageAccount 'storage_account.bicep' = {
   name: 'storageAccount'
   params: {
     location: location
-    //userAssignedIdentity: identities.outputs.userAssignedIdentity
+    userAssignedIdentity: identities.outputs.userAssignedIdentity
     keyVaultName: keyVault.outputs.keyVaultName
-    //keyVaultUri: keyVault.outputs.keyVaultUri
+    keyVaultUri: keyVault.outputs.keyVaultUri
     oasisStorageAccountSKU: oasisStorageAccountSKU
     tags: tags
   }
@@ -123,6 +163,7 @@ module aks 'aks.bicep' = {
     nodeResourceGroup: nodeResourceGroup
     workspaceTier: workspaceTier
     tags: tags
+    keyVaultName: keyVault.outputs.keyVaultName
   }
 
   dependsOn: [

@@ -35,9 +35,15 @@ param modelsFileShareName string = 'models'
 @description('Name of key vault')
 param keyVaultName string
 
+@description('Key vault URI')
+param keyVaultUri string
+
+@description('The user assigned identity that owns the key vault')
+param userAssignedIdentity object
+
 param storageAccountEncryptionKeyName string = 'oasisfs-key'
 
-/* TODO
+
 resource kvKey 'Microsoft.KeyVault/vaults/keys@2021-06-01-preview' = {
   name: '${keyVaultName}/${storageAccountEncryptionKeyName}'
   properties: {
@@ -47,7 +53,7 @@ resource kvKey 'Microsoft.KeyVault/vaults/keys@2021-06-01-preview' = {
     keySize: 4096
     kty: 'RSA'
   }
-}*/
+}
 
 resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
     name: oasisStorageAccountName
@@ -62,9 +68,9 @@ resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
         allowBlobPublicAccess: false
         supportsHttpsTrafficOnly: true
         minimumTlsVersion: 'TLS1_2'
-       /* encryption: { TODO enable encryption?
+        /*encryption: { TODO
           identity: {
-            userAssignedIdentity: userAssignedIdentity.id
+            userAssignedIdentity: userAssignedIdentity
           }
           services: {
              blob: {
@@ -76,7 +82,7 @@ resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
             keyname: kvKey.name
             keyvaulturi: endsWith(keyVaultUri,'/') ? substring(keyVaultUri, 0, length(keyVaultUri) - 1) : keyVaultUri
           }
-        }*/
+       }*/
     }
 }
 

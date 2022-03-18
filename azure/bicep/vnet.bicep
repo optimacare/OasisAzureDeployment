@@ -79,6 +79,7 @@ resource vnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
            networkSecurityGroup: {
             id: vnetSG.id
            }
+           privateEndpointNetworkPolicies: 'Disabled'
         }
       }
     ]

@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-scripts
+data:
+  db-init.sh: |-
+    {{- .Files.Get "resources/db-init.sh" | indent 4 }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+  labels:
+    oasislmf/type: azure-db-init
+spec:
+  ttlSecondsAfterFinished: 120
+  template:
+    spec:
+      containers:
+        - name: db-init
+          image: {{ .Values.images.image }}:{{- .Values.images.version }}
+          env:
+            - name: OASIS_DB_SERVER_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: oasis-db-server-name
+                  key: oasis-db-server-name
+            - name: OASIS_DB_SERVER_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: oasis-db-server-host
+                  key: oasis-db-server-host
+            - name: OASIS_DB_SERVER_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oasis-db-server-admin-username
+                  key: oasis-db-server-admin-username
+            - name: OASIS_DB_SERVER_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oasis-db-server-admin-password
+                  key: oasis-db-server-admin-password
+            - name: OASIS_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: oasis-db-username
+                  key: oasis-db-username
+            - name: OASIS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: oasis-db-password
+                  key: oasis-db-password
+            - name: KEYCLOAK_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-username
+                  key: keycloak-db-username
+            - name: KEYCLOAK_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-db-password
+                  key: keycloak-db-password
+            - name: CELERY_DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: celery-db-username
+                  key: celery-db-username
+            - name: CELERY_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: celery-db-password
+                  key: celery-db-password
+          volumeMounts:
+            - name: db-init-script
+              mountPath: /tmp/db-init.sh
+              subPath: db-init.sh
+            - name: secrets-store01-inline
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          command: ["sh", "-c", "/tmp/db-init.sh"]
+      volumes:
+        - name: db-init-script
+          configMap:
+            name: db-init-scripts
+            defaultMode: 0777
+        - name: secrets-store01-inline
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: "azure-db-init-secret-provider"
+      restartPolicy: Never
+  backoffLimit: 4

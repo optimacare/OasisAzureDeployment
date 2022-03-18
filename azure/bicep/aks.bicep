@@ -54,6 +54,8 @@ param dockerBridgeCidr string = '172.17.0.1/16'
 @description('Name of resource group for aks node')
 param nodeResourceGroup string = '${clusterName}-aks'
 
+@description('Name of key vault')
+param keyVaultName string
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2020-10-01' = {
   name: '${clusterName}-oms'
@@ -129,14 +131,26 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
       }
       azureKeyvaultSecretsProvider: {
         enabled: true
-        /*config: {
-          enableSecretRotation: 'true'
-        }
-        identity: {
-            clientId: '8f7d93d2-56f7-4bed-a123-958f50597f9b'
-        }*/
       }
     }
+  }
+}
+
+resource symbolicname 'Microsoft.KeyVault/vaults/accessPolicies@2021-11-01-preview' = {
+  name: '${keyVaultName}/add'
+  properties: {
+    accessPolicies: [
+      {
+        objectId: aksCluster.properties.identityProfile.kubeletidentity.objectId
+        permissions: {
+          secrets: [
+            'list'
+            'get'
+          ]
+        }
+        tenantId: subscription().tenantId
+      }
+    ]
   }
 }
 
