@@ -36,11 +36,12 @@ git clone https://github.com/OasisLMF/OasisAzureDeployment.git
 
 Then we need to set a few requires settings for our Azure environment. It is highly recommended going through all configuration files but to deploy the environment you must set the following as a minimum:
 
-| File                           | Setting            |
-|--------------------------------|--------------------|
-| settings/settings.sh           | DNS_LABEL_NAME     |
-| settings/settings.sh           | LETSENCRYPT_EMAIL  |
-| settings/azure/parameters.json | allowedCidrRanges  |
+| File                           | Setting                   |
+|--------------------------------|---------------------------|
+| settings/settings.sh           | DNS_LABEL_NAME            |
+| settings/settings.sh           | LETSENCRYPT_EMAIL         |
+| settings/azure/parameters.json | allowedCidrRanges         |
+| settings/azure/parameters.json | oasisServerAdminPassword  |
 
 More details about each setting is found below or in the file.
 
@@ -58,17 +59,18 @@ The file `settings/azure/parameters.json` contains Azure specific parameters lik
 
 A short summary of the most interesting ones:
 
-| Name                   | Description                                                                                                                                                                                                                                                                                                                                                 |
-|------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| allowedCidrRanges      | Whitelisted [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) ranges - only these will be able to connect over HTTPS. Make sure to include the range/IP from where you will access the azure domain. The adress provided by [whatsmyip](https://www.whatsmyip.org) might work, but not always depending on your network access to Azure. |
-| openHttpForAll         | When set to `true` this will open up HTTP access without any filtering and redirect all requests to HTTPS. There are 2 reasons to have this open:<br>1. It is required for letsencrypt to create a valid TLS certificate.<br>2. Help some browsers to find the HTTPS service.                                                                               |
-| availabilityZones      | List of availability zones to use in this Azure location.                                                                                                                                                                                                                                                                                                   |
-| platformNodeVm         | Type of Virtual Machine to use for the AKS platform node (run everything except for worker pods)                                                                                                                                                                                                                                                            |
-| workerNodesVm          | Type of Virtual Machine to use for AKS worker nodes.                                                                                                                                                                                                                                                                                                        |
-| clusterName            | AKS cluster name                                                                                                                                                                                                                                                                                                                                            |
-| tags                   | Tags to attach to all resources created                                                                                                                                                                                                                                                                                                                     |
-| keyVaultName           | Name of key vault to store secrets in                                                                                                                                                                                                                                                                                                                       |
-| oasisStorageAccountSKU | Storage account disk class                                                                                                                                                                                                                                                                                                                                  |
+| Name                      | Description                                                                                                                                                                                                                                                                                                                                                 |
+|---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| allowedCidrRanges         | Whitelisted [CIDR](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing) ranges - only these will be able to connect over HTTPS. Make sure to include the range/IP from where you will access the azure domain. The adress provided by [whatsmyip](https://www.whatsmyip.org) might work, but not always depending on your network access to Azure. |
+| openHttpForAll            | When set to `true` this will open up HTTP access without any filtering and redirect all requests to HTTPS. There are 2 reasons to have this open:<br>1. It is required for letsencrypt to create a valid TLS certificate.<br>2. Help some browsers to find the HTTPS service.                                                                               |
+| availabilityZones         | List of availability zones to use in this Azure location.                                                                                                                                                                                                                                                                                                   |
+| platformNodeVm            | Type of Virtual Machine to use for the AKS platform node (run everything except for worker pods)                                                                                                                                                                                                                                                            |
+| workerNodesVm             | Type of Virtual Machine to use for AKS worker nodes.                                                                                                                                                                                                                                                                                                        |
+| clusterName               | AKS cluster name                                                                                                                                                                                                                                                                                                                                            |
+| tags                      | Tags to attach to all resources created                                                                                                                                                                                                                                                                                                                     |
+| keyVaultName              | Name of key vault to store secrets in                                                                                                                                                                                                                                                                                                                       |
+| oasisStorageAccountSKU    | Storage account disk class                                                                                                                                                                                                                                                                                                                                  |
+| oasisServerAdminPassword  | Password for database administrator account                                                                                                                                                                                                                                                                                                                 |
 
 #### Helm settings
 
@@ -129,7 +131,7 @@ This will deploy:
  - Build and push oasis server and worker images from OasisPlatform/platform-2.0.
  - Oasis Helm charts for the platform.
 
-This initialization deployment may take about 20 minutes to run. You can follow the progress by opening up the job and view the **Deploy** task output. The deployment of Azure resources can be monitored in the Azure Portal under **Deployments** in your resource group.
+This initialization deployment may take up to 50 minutes to deploy (redis takes about 25-40 minutes for some reason). You can follow the progress by opening up the job and view the **Deploy** task output. The deployment of Azure resources can be monitored in the Azure Portal under **Deployments** in your resource group.
 
 At the end it prints a summary of resource names and URLs. It might take a few minutes more before those URLs are accessible due to the time kubernetes needs to initialize the Oasis platform.
 

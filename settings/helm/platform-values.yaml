@@ -45,15 +45,6 @@ ingress-nginx:
       # Make nginx log the real client IP
       externalTrafficPolicy: Local
 
-
-azure:
-  host: {}
-  storageAccounts:
-    oasisfs:
-      secretName: oasis-storage-account
-      accountName: account  # Replaced by Azure Deployment
-      accountKey: key       # Replaced by Azure Deployment
-
 # Volumes to mount and use within the platform
 volumes:
   host: null
@@ -64,3 +55,60 @@ volumes:
         volumeAttributes:
           secretName: oasis-storage-account
           shareName: oasisfs
+
+azure:
+  host: {}
+  storageAccounts:
+    oasisfs:
+      secretName: oasis-storage-account
+  secretProvider:
+    secrets:
+      server-db:
+        - key: user
+          objectName: oasis-db-username
+        - key: password
+          objectName: oasis-db-password
+      celery-db:
+        - key: user
+          objectName: celery-db-username
+        - key: password
+          objectName: celery-db-password
+      keycloak-db:
+        - key: user
+          objectName: keycloak-db-username
+        - key: password
+          objectName: keycloak-db-password
+      channel-layer:
+        - key: password
+          objectName: celery-redis-password
+
+databases:
+  channel_layer:
+    type: azure_redis
+    name: channel-layer
+    port: 6379
+  broker:
+    type: rabbitmq
+    name: broker
+    port: 5672
+    extraPort: 15672
+    user: rabbit
+    password: rabbit
+  keycloak_db:
+    type: azure_postgres
+    name: keycloak-db
+    dbName: keycloak
+    port: 5432
+    user: keycloak
+  celery_db:
+    type: azure_postgres
+    name: celery-db
+    dbName: celery
+    port: 5432
+  oasis_db:
+    type: azure_postgres
+    name: server-db
+    dbName: oasis
+    port: 5432
+    user: oasis # Will be overwritten by azure secrets
+

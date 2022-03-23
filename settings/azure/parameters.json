@@ -45,6 +45,9 @@
     },
     "oasisStorageAccountSKU": {
       "value": "Standard_LRS"
+    },
+    "oasisServerAdminPassword": {
+      "value": ""
     }
   }
 }
