@@ -11,6 +11,9 @@
     "workerNodesVm": {
       "value": "Standard_B2s"
     },
+    "workerNodesMaxCount": {
+      "value": 2
+    },
     "availabilityZones": {
       "value": []
     },
@@ -36,6 +39,12 @@
     },
     "openHttpForAll": {
       "value": true
+    },
+    "keyVaultName": {
+      "value": "oasis-enterprise-vault"
+    },
+    "oasisStorageAccountSKU": {
+      "value": "Standard_LRS"
     }
   }
 }

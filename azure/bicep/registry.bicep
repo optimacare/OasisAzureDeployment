@@ -1,3 +1,5 @@
+@description('Resource location')
+param location string = resourceGroup().location
 
 @description('The name of the container registry')
 param registryName string
@@ -13,7 +15,7 @@ param roleAcrPull string = 'acdd72a7-3385-48ef-bd42-f606fba81ae7'
 
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2019-05-01' = {
   name: registryName
-  location: resourceGroup().location
+  location: location
   sku: {
     name: 'Standard'
   }

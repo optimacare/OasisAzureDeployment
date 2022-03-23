@@ -15,7 +15,7 @@ param workerNodesVm string
 
 @maxValue(10)
 @description('Max number of nodes to scale up to')
-param workerNodesMaxCount int
+param workerNodesMaxCount int = 1
 
 @description('Availability zones to use for the cluster nodes')
 param availabilityZones array
@@ -51,6 +51,9 @@ param dnsServiceIP string = '10.0.0.10'
 @description('Docker Bridge IP range')
 param dockerBridgeCidr string = '172.17.0.1/16'
 
+@description('Name of resource group for aks node')
+param nodeResourceGroup string = '${clusterName}-aks'
+
 
 resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2020-10-01' = {
   name: '${clusterName}-oms'
@@ -64,14 +67,14 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2020-10
 }
 
 resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
-  name: '${clusterName}-aks'
+  name: clusterName
   location: location
   identity: {
     type: 'SystemAssigned'
   }
   tags: tags
   properties: {
-    nodeResourceGroup: '${clusterName}-aks'
+    nodeResourceGroup: nodeResourceGroup
     kubernetesVersion: kubernetesVersion
     dnsPrefix: '${clusterName}-dns'
     enableRBAC: true
@@ -87,7 +90,7 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
         availabilityZones: availabilityZones
         vnetSubnetID: subnetId
         nodeLabels: {
-          'oasis/node-type': 'platform'
+          'oasislmf/node-type': 'platform'
         }
       }
       {
@@ -103,7 +106,7 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
         availabilityZones: availabilityZones
         vnetSubnetID: subnetId
         nodeLabels: {
-          'oasis/node-type': 'worker'
+          'oasislmf/node-type': 'worker'
         }
       }
     ]
@@ -124,9 +127,19 @@ resource aksCluster 'Microsoft.ContainerService/managedClusters@2021-03-01' = {
           logAnalyticsWorkspaceResourceID: logAnalyticsWorkspace.id
         }
       }
+      azureKeyvaultSecretsProvider: {
+        enabled: true
+        /*config: {
+          enableSecretRotation: 'true'
+        }
+        identity: {
+            clientId: '8f7d93d2-56f7-4bed-a123-958f50597f9b'
+        }*/
+      }
     }
   }
 }
 
-output controlPlaneFQDN string = reference('${clusterName}-aks').fqdn
+output controlPlaneFQDN string = reference('${clusterName}').fqdn
 output clusterPrincipalID string = aksCluster.properties.identityProfile.kubeletidentity.objectId
+output aksCluster object = aksCluster

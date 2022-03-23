@@ -1,3 +1,6 @@
+@description('Resource location')
+param location string = resourceGroup().location
+
 @description('The name of the cluster')
 param clusterName string
 
@@ -34,10 +37,22 @@ param openHttpForAll bool = false
 @description('The name of the container registry')
 param registryName string
 
+@description('The name of the Key Vault.')
+param keyVaultName string = 'oasis-enterprise'
+
+@description('Azure storage SKU type')
+param oasisStorageAccountSKU string = 'Standard_LRS'
+
+@description('Name of resource group for aks node')
+param nodeResourceGroup string
+
+@description('Current user object id - if set will add access for this user to the key vault')
+param currentUserObjectId string = ''
 
 module vnet 'vnet.bicep' = {
   name: 'vnetDeploy'
   params: {
+    location: location
     vnetName: '${clusterName}-vnet'
     subnetName: '${clusterName}-snet'
     vnetAddressPrefixes: vnetAddressPrefixes
@@ -51,16 +66,11 @@ module vnet 'vnet.bicep' = {
   ]
 }
 
-module aks 'aks.bicep' = {
-  name: 'aksDeploy'
+module identities 'identities.bicep' = {
+  name: 'identities'
   params: {
+    location: location
     clusterName: clusterName
-    subnetId: vnet.outputs.subnetId
-    platformNodeVm: platformNodeVm
-    workerNodesVm: workerNodesVm
-    workerNodesMaxCount: workerNodesMaxCount
-    availabilityZones: availabilityZones
-    workspaceTier: workspaceTier
     tags: tags
   }
 
@@ -69,9 +79,61 @@ module aks 'aks.bicep' = {
   ]
 }
 
+module keyVault 'key_vault.bicep' = {
+  name: 'keyVault'
+  params: {
+    location: location
+    keyVaultName: keyVaultName
+    userAssignedIdentity: identities.outputs.userAssignedIdentity
+    currentUserObjectId: currentUserObjectId
+    tags: tags
+  }
+
+  dependsOn: [
+    identities
+  ]
+}
+
+module storageAccount 'storage_account.bicep' = {
+  name: 'storageAccount'
+  params: {
+    location: location
+    //userAssignedIdentity: identities.outputs.userAssignedIdentity
+    keyVaultName: keyVault.outputs.keyVaultName
+    //keyVaultUri: keyVault.outputs.keyVaultUri
+    oasisStorageAccountSKU: oasisStorageAccountSKU
+    tags: tags
+  }
+
+  dependsOn: [
+    vnet
+  ]
+}
+
+module aks 'aks.bicep' = {
+  name: 'aksDeploy'
+  params: {
+    location: location
+    clusterName: clusterName
+    subnetId: vnet.outputs.subnetId
+    platformNodeVm: platformNodeVm
+    workerNodesVm: workerNodesVm
+    workerNodesMaxCount: workerNodesMaxCount
+    availabilityZones: availabilityZones
+    nodeResourceGroup: nodeResourceGroup
+    workspaceTier: workspaceTier
+    tags: tags
+  }
+
+  dependsOn: [
+    storageAccount
+  ]
+}
+
 module registry 'registry.bicep' = {
   name: 'registryDeploy'
   params: {
+    location: location
     registryName: registryName
     aksPrincipalId: aks.outputs.clusterPrincipalID
     tags: tags
@@ -81,3 +143,9 @@ module registry 'registry.bicep' = {
     aks
   ]
 }
+
+output oasisFsNameSecretName string = storageAccount.outputs.oasisFsNameSecretName
+output oasisFsKeySecretName string = storageAccount.outputs.oasisFsKeySecretName
+output oasisFileShareName string = storageAccount.outputs.oasisFileShareName
+output modelsFileShareName string = storageAccount.outputs.modelsFileShareName
+output aksCluster object = aks.outputs.aksCluster
