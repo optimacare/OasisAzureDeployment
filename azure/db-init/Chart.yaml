@@ -1,0 +1,8 @@
+apiVersion: v2
+name: db-init
+version: 0.1.0
+type: application
+description: Tiny chart to initialize the Oasis databases by creating a user for them.
+
+appVersion: "1.0"
+home: https://github.com/OasisLMF

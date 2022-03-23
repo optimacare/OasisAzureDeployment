@@ -1,0 +1,114 @@
+images:
+  oasis:
+    platform:
+      image: ${ACR}/coreoasis/api_server
+      imagePullPolicy: Always
+    worker_controller:
+      image: ${ACR}/coreoasis/worker_controller
+      imagePullPolicy: Always
+
+ingress:
+  uiHostname: ${DOMAIN}
+
+  tls:
+    strategy: 'letsencrypt'
+    certificateSecret: oasis-ingress-tls
+    email: ${LETSENCRYPT_EMAIL}
+    server: https://acme-v02.api.letsencrypt.org/directory
+#    server: https://acme-staging-v02.api.letsencrypt.org/directory # Stage server
+
+oasisServer:
+  oidc:
+    endpoint: https://${DOMAIN}/auth/realms/oasis/protocol/openid-connect/
+
+affinity:
+  # Place all pods on nodes with label oasislmf/node-type set to either 'platform'
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: oasislmf/node-type
+              operator: In
+              values:
+                - platform
+
+
+ingress-nginx:
+  controller:
+    nodeSelector:
+      oasislmf/node-type: platform
+
+    service:
+      annotations:
+        service.beta.kubernetes.io/azure-dns-label-name: ${DNS_LABEL_NAME}
+
+      # Make nginx log the real client IP
+      externalTrafficPolicy: Local
+
+# Volumes to mount and use within the platform
+volumes:
+  host: null
+  azureFiles:
+    sharedFs:
+      csi:
+        driver: file.csi.azure.com
+        volumeAttributes:
+          secretName: oasis-storage-account
+          shareName: oasisfs
+
+azure:
+  host: {}
+  storageAccounts:
+    oasisfs:
+      secretName: oasis-storage-account
+  secretProvider:
+    secrets:
+      server-db:
+        - key: user
+          objectName: oasis-db-username
+        - key: password
+          objectName: oasis-db-password
+      celery-db:
+        - key: user
+          objectName: celery-db-username
+        - key: password
+          objectName: celery-db-password
+      keycloak-db:
+        - key: user
+          objectName: keycloak-db-username
+        - key: password
+          objectName: keycloak-db-password
+      channel-layer:
+        - key: password
+          objectName: celery-redis-password
+
+databases:
+  channel_layer:
+    type: azure_redis
+    name: channel-layer
+    port: 6379
+  broker:
+    type: rabbitmq
+    name: broker
+    port: 5672
+    extraPort: 15672
+    user: rabbit
+    password: rabbit
+  keycloak_db:
+    type: azure_postgres
+    name: keycloak-db
+    dbName: keycloak
+    port: 5432
+    user: keycloak
+  celery_db:
+    type: azure_postgres
+    name: celery-db
+    dbName: celery
+    port: 5432
+  oasis_db:
+    type: azure_postgres
+    name: server-db
+    dbName: oasis
+    port: 5432
+    user: oasis # Will be overwritten by azure secrets
+
