@@ -1,0 +1,2 @@
+nodeSelector:
+  oasis/node-type: platform

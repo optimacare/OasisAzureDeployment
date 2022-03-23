@@ -1,0 +1,50 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+- feature/azure-sprint-1
+
+pool:
+  vmImage: ubuntu-latest
+
+resources:
+  repositories:
+    - repository: OasisPlatform
+      name: OasisLMF/OasisPlatform
+      endpoint: OasisLMF
+      type: github
+      ref: platform-2.0-azure-sprint-1 # ref name to use; defaults to 'refs/heads/master'.
+
+steps:
+- checkout: self
+  path: OasisAzureDeployment
+- checkout: OasisPlatform
+  path: OasisPlatform
+
+- script: |
+    echo "pwd:"
+    pwd
+    echo "ls:"
+    ls
+    echo "ls ..:"
+    ls ..
+  displayName: 'Check context'
+
+- script: |    
+
+    set -e
+    
+    LOCATION="northcentralus"
+    RESOURCE_GROUP="oasis"
+    DNS_LABEL_NAME=
+    EMAIL=
+    OASIS_PLATFORM_DIR="$(cd ../OasisPlatform; pwd)"
+
+    cd ../OasisAzureDeployment
+    chmod +x deploy.sh # TODO fix
+    ./deploy.sh
+
+  displayName: 'Deploy'

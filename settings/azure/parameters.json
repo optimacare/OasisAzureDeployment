@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "value": "oasis-enterprise"
+    },
+    "platformNodeVm": {
+      "value": "Standard_B2ms"
+    },
+    "workerNodesVm": {
+      "value": "Standard_B2s"
+    },
+    "availabilityZones": {
+      "value": []
+    },
+    "workspaceTier": {
+      "value": "PerGB2018"
+    },
+    "vnetAddressPrefixes": {
+      "value": [
+        "10.240.0.0/16"
+      ]
+    },
+    "subnetAddressPrefix": {
+      "value": "10.240.0.0/20"
+    },
+    "allowedCidrRanges": {
+      "value": [
+      ]
+    },
+    "tags": {
+      "value": {
+        "oasis-enterprise": true
+      }
+    },
+    "openHttpForAll": {
+      "value": true
+    }
+  }
+}
