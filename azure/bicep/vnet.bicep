@@ -80,6 +80,11 @@ resource vnet 'Microsoft.Network/virtualNetworks@2021-05-01' = {
             id: vnetSG.id
            }
            privateEndpointNetworkPolicies: 'Disabled'
+           serviceEndpoints: [
+            {
+                service: 'Microsoft.Storage'
+            }
+           ]
         }
       }
     ]

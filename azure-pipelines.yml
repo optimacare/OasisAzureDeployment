@@ -1,6 +1,4 @@
 trigger: none
-#trigger:
-#  - feature/my-env
 
 pool:
   vmImage: ubuntu-latest
@@ -9,8 +7,6 @@ parameters:
   - name: deploy
     displayName: Deploy
     type: string
-#    default: resource-groups
-#    default: custom
     values:
       - resource-groups
       - base
@@ -26,7 +22,7 @@ resources:
       name: OasisLMF/OasisPlatform
       endpoint: OasisLMF
       type: github
-      ref: platform-2.0-azure-sprint-3
+      ref: platform-2.0
     - repository: OasisPiWind
       name: OasisLMF/OasisPiWind
       endpoint: OasisLMF
