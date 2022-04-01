@@ -81,6 +81,7 @@ acr_name="acr${DNS_LABEL_NAME//[^a-z0-9]/}"             # Must be unique within 
 cluster_name="$(get_bicep_parameter "clusterName")"
 aks="${cluster_name}-aks"
 aks_resource_group="${RESOURCE_GROUP}-aks"
+temporary_files=()
 
 for evname in LOCATION DNS_LABEL_NAME RESOURCE_GROUP OASIS_PLATFORM_DIR OASIS_PIWIND_DIR LETSENCRYPT_EMAIL; do
   if [ -z "${!evname}" ]; then
@@ -147,17 +148,31 @@ function helm_deploy() {
     helm_operation=upgrade
   fi
 
+  acr=$(get_acr)
+
   echo "Helm chart ${helm_operation}..."
 
-  acr=$(get_acr)
-  echo "Found acr: $acr"
-  cat $1 | \
-    sed "s/\${ACR}/${acr}/g" | \
-    sed "s/\${DNS_LABEL_NAME}/${DNS_LABEL_NAME}/g" | \
-    sed "s/\${LOCATION}/${LOCATION}/g" | \
-    sed "s/\${DOMAIN}/${domain}/g" | \
-    sed "s/\${LETSENCRYPT_EMAIL}/${LETSENCRYPT_EMAIL}/g" | \
-    helm $helm_operation "$3" "$2" -f- "${@:4}"
+  inputs=""
+  i=0
+  temp_dir=$(mktemp -d)
+  temporary_files+=("$temp_dir")
+  for value_file in $1; do
+
+    i=$((i + 1))
+    file="${temp_dir}/$i"
+
+    cat "$value_file" | \
+        sed "s/\${ACR}/${acr}/g" | \
+        sed "s/\${DNS_LABEL_NAME}/${DNS_LABEL_NAME}/g" | \
+        sed "s/\${LOCATION}/${LOCATION}/g" | \
+        sed "s/\${DOMAIN}/${domain}/g" | \
+        sed "s/\${LETSENCRYPT_EMAIL}/${LETSENCRYPT_EMAIL}/g" \
+        > "$file"
+
+    inputs+=" -f $file"
+  done
+
+  helm $helm_operation $inputs "$3" "$2" "${@:4}"
 
   echo "Helm finished"
 }
@@ -227,8 +242,21 @@ function start_port_forward_if_needed() {
   fi
 }
 
+function cleanup_temporary_files() {
+
+  for file in "${temporary_files[@]}"; do
+    if [ -f "$file" ]; then
+      rm -f "$file"
+    elif [ -d "$file" ]; then
+      rm  $file/*
+      rm -r "$file"
+    fi
+  done
+}
+
 function cleanup() {
 
+  cleanup_temporary_files
   stop_port_forward
 }
 
@@ -557,11 +585,16 @@ case "$deploy_type" in
 
     echo "Deploying models..."
 
+    chart_inputs="${SCRIPT_DIR}/settings/helm/platform-values.yaml ${SCRIPT_DIR}/settings/helm/models-values.yaml"
+    for worker in "${SCRIPT_DIR}/settings/helm/workers/"*; do
+      chart_inputs+=" $worker"
+    done
+
     update_kubectl_cluster
-    helm_deploy "${SCRIPT_DIR}/settings/helm/platform-values.yaml ${SCRIPT_DIR}/settings/helm/models-values.yaml" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-models/" "$HELM_MODELS_NAME"
+    helm_deploy "${chart_inputs}" "${OASIS_PLATFORM_DIR}/kubernetes/charts/oasis-models/" "$HELM_MODELS_NAME" --set workers.piwind_demo=null
 
     echo "Waiting for models to be registered: "
-    MODELS=$(grep modelId "${SCRIPT_DIR}/settings/helm/models-values.yaml" | sed 's/^[- \t]*modelId:[ ]*\([^ #]*\).*/\1/')
+    MODELS=$(cat $chart_inputs | grep modelId | sed 's/^[- \t]*modelId:[ ]*\([^ #]*\).*/\1/')
 
     for model in $MODELS; do
       echo -n "$model..."

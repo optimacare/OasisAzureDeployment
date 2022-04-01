@@ -7,23 +7,7 @@ modelVolumes:
         secretName: oasis-storage-account
         shareName: models
 
-workers:
-  - supplierId: OasisLMF  # Must be identical to supplier in the model data file share
-    modelId: PiWind       # Must be identical to name in the model data file share
-    modelVersionId: "1"   # Must be identical to version in the model data file share
-    image: ${ACR}/coreoasis/model_worker  # The path to your image, ${ACR} will automatically be replaced with your environments URL
-    version: dev                          # Version tag of your image
-    imagePullPolicy: Always
-    env: # Additional worker environment variables
-      - name: OASIS_DEBUG
-        value: "1"
-      - name: OASIS_MODEL_DATA_DIRECTORY
-        value: /home/worker/model
-    volumes: # Volume defined in modelVolumes
-      - name: oasis-models-azure-file
-        type: model-data
-        mountPath: /home/worker/model  # Set the mount path for your model data
-        source: azureFiles
+# workers: - You can either add models here or to separate files in workers/, or both.
 
 registration_job:
   nodeSelector:
