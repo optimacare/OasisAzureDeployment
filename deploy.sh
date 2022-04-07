@@ -83,6 +83,9 @@ aks="${cluster_name}-aks"
 aks_resource_group="${RESOURCE_GROUP}-aks"
 temporary_files=()
 
+export OASIS_API_URL="https://${domain}/api"
+export OASIS_AUTH_API=1
+
 for evname in LOCATION DNS_LABEL_NAME RESOURCE_GROUP OASIS_PLATFORM_DIR OASIS_PIWIND_DIR LETSENCRYPT_EMAIL; do
   if [ -z "${!evname}" ]; then
     echo "Missing required environment variable: $evname"
@@ -198,8 +201,6 @@ function kill_processes {
 
 function check_domain_access() {
 
-  export OASIS_API_URL="https://${domain}/api"
-
   echo -n "Checking access to ${OASIS_API_URL}... "
 
   if response_code=$(curl -sk --connect-timeout 3 --write-out "%{http_code}" --output /dev/null "$OASIS_API_URL"); then
@@ -231,7 +232,6 @@ function start_port_forward() {
   done
   echo "up"
 
-  export OASIS_AUTH_API=1
   export OASIS_API_URL="http://localhost:$PORT_FORWARDING_LOCAL_PORT"
 }
 
