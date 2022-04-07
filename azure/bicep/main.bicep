@@ -38,7 +38,7 @@ param openHttpForAll bool = false
 param registryName string
 
 @description('The name of the Key Vault.')
-param keyVaultName string = 'oasis-enterprise'
+param keyVaultName string = 'oasis-${uniqueString(resourceGroup().id)}'
 
 @description('Azure storage SKU type')
 param oasisStorageAccountSKU string = 'Standard_LRS'
@@ -138,11 +138,11 @@ module storageAccount 'storage_account.bicep' = {
   name: 'storageAccount'
   params: {
     location: location
-    userAssignedIdentity: identities.outputs.userAssignedIdentity
     keyVaultName: keyVault.outputs.keyVaultName
-    keyVaultUri: keyVault.outputs.keyVaultUri
     oasisStorageAccountSKU: oasisStorageAccountSKU
     tags: tags
+    subnetId: vnet.outputs.subnetId
+    allowedCidrRanges: allowedCidrRanges
   }
 
   dependsOn: [

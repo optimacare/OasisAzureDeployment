@@ -35,27 +35,17 @@ param modelsFileShareName string = 'models'
 @description('Name of key vault')
 param keyVaultName string
 
-@description('Key vault URI')
-param keyVaultUri string
+@description('The virtual network address prefixes')
+param allowedCidrRanges array = []
 
-@description('The user assigned identity that owns the key vault')
-param userAssignedIdentity object
+@description('The sub network ID to allow access from')
+param subnetId string
 
-param storageAccountEncryptionKeyName string = 'oasisfs-key'
+var allAccess = empty(allowedCidrRanges) || contains(allowedCidrRanges, '0.0.0.0/0')
+var defaultNetworkAction = allAccess ? 'Allow' : 'Deny'
+var allowedCidrRangesCleaned = allAccess ? [] : allowedCidrRanges
 
-
-resource kvKey 'Microsoft.KeyVault/vaults/keys@2021-06-01-preview' = {
-  name: '${keyVaultName}/${storageAccountEncryptionKeyName}'
-  properties: {
-    attributes: {
-      enabled: true
-    }
-    keySize: 4096
-    kty: 'RSA'
-  }
-}
-
-resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
+resource sharedFs 'Microsoft.Storage/storageAccounts@2021-08-01' = {
     name: oasisStorageAccountName
     location: location
     sku: {
@@ -68,21 +58,19 @@ resource sharedFs 'Microsoft.Storage/storageAccounts@2021-06-01' = {
         allowBlobPublicAccess: false
         supportsHttpsTrafficOnly: true
         minimumTlsVersion: 'TLS1_2'
-        /*encryption: { TODO
-          identity: {
-            userAssignedIdentity: userAssignedIdentity
-          }
-          services: {
-             blob: {
-               enabled: true
-             }
-          }
-          keySource: 'Microsoft.Keyvault'
-          keyvaultproperties: {
-            keyname: kvKey.name
-            keyvaulturi: endsWith(keyVaultUri,'/') ? substring(keyVaultUri, 0, length(keyVaultUri) - 1) : keyVaultUri
-          }
-       }*/
+        networkAcls: {
+            bypass: 'Logging, AzureServices'
+            virtualNetworkRules: [
+                {
+                    id: subnetId
+                }
+            ]
+            ipRules: [for cidr in allowedCidrRangesCleaned: {
+                value: replace(cidr, '/32', '')
+                action: 'Allow'
+            }]
+            defaultAction: defaultNetworkAction
+        }
     }
 }
 

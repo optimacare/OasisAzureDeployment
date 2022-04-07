@@ -25,3 +25,7 @@ RESOURCE_GROUP="oasis-enterprise"
 
 # Override the standard azure parameter file
 #AZURE_PARAM_FILE="${SCRIPT_DIR}/settings/azure/myparameters.json"
+
+# Default way of accessing the API with deploy.sh is to tunnel the traffic through the Kubernetes cluster.
+# Set this variable to "1" to instead access the API directly through the domain name.
+#CONNECT_DIRECTLY=1

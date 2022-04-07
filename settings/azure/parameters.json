@@ -2,8 +2,12 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "clusterName": {
-      "value": "oasis-enterprise"
+    "allowedCidrRanges": {
+      "value": [
+      ]
+    },
+    "oasisServerAdminPassword": {
+      "value": ""
     },
     "platformNodeVm": {
       "value": "Standard_B2ms"
@@ -13,6 +17,12 @@
     },
     "workerNodesMaxCount": {
       "value": 2
+    },
+    "oasisStorageAccountSKU": {
+      "value": "Standard_LRS"
+    },
+    "clusterName": {
+      "value": "oasis-enterprise"
     },
     "availabilityZones": {
       "value": []
@@ -28,10 +38,6 @@
     "subnetAddressPrefix": {
       "value": "10.240.0.0/20"
     },
-    "allowedCidrRanges": {
-      "value": [
-      ]
-    },
     "tags": {
       "value": {
         "oasis-enterprise": true
@@ -39,15 +45,6 @@
     },
     "openHttpForAll": {
       "value": true
-    },
-    "keyVaultName": {
-      "value": "oasis-enterprise-vault"
-    },
-    "oasisStorageAccountSKU": {
-      "value": "Standard_LRS"
-    },
-    "oasisServerAdminPassword": {
-      "value": ""
     }
   }
 }
