@@ -110,5 +110,4 @@ databases:
     name: server-db
     dbName: oasis
     port: 5432
-    user: oasis # Will be overwritten by azure secrets
-
+    user: oasis
