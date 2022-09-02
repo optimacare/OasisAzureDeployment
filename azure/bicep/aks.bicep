@@ -5,7 +5,7 @@ param clusterName string
 param location string = resourceGroup().location
 
 @description('Kubernetes version to use')
-param kubernetesVersion string = '1.22.4'
+param kubernetesVersion string = '1.22.11'
 
 @description('The VM Size to use for the platform')
 param platformNodeVm string

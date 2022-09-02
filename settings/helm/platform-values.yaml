@@ -86,7 +86,8 @@ databases:
   channel_layer:
     type: azure_redis
     name: channel-layer
-    port: 6379
+    port: 6380
+    ssl: true 
   broker:
     type: rabbitmq
     name: broker
