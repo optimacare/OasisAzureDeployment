@@ -52,7 +52,7 @@ resource redisCache 'Microsoft.Cache/Redis@2021-06-01' = {
   tags: tags
   properties: {
     redisVersion: '6'
-    enableNonSslPort: true
+    enableNonSslPort: false
     minimumTlsVersion: '1.2'
     publicNetworkAccess: 'Disabled'
     sku: {
