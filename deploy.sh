@@ -639,7 +639,7 @@ case "$deploy_type" in
     done
 
     update_kubectl_cluster
-    $UPLOAD_MODEL_DATA -c "mv meta-data/* ." -C "$OASIS_PIWIND_DIR" OasisLMF/PiWind/1 ${files_to_copy[@]}
+    $UPLOAD_MODEL_DATA -c "cp meta-data/* ." -C "$OASIS_PIWIND_DIR" OasisLMF/PiWind/1 ${files_to_copy[@]}
   ;;
   "analyses")
 
