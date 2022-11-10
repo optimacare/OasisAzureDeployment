@@ -369,10 +369,10 @@ case "$deploy_type" in
     echo "Deploying Azure resources..."
 
     if [ "$(az account show --query 'user.type' -o tsv)" == "servicePrincipal" ]; then
-      CURRENT_USER_OBJECT_ID="$(az ad sp show --id "${servicePrincipalId}" --query 'objectId' -o tsv)"
+      CURRENT_USER_OBJECT_ID="$(az ad sp show --id "${servicePrincipalId}" --query 'id' -o tsv)"
     else
       CURRENT_USER_ID="$(az account show --query 'user.name' -o tsv)"
-      CURRENT_USER_OBJECT_ID="$(az ad user show --id "$CURRENT_USER_ID" --query objectId -o tsv)"
+      CURRENT_USER_OBJECT_ID="$(az ad user show --id "$CURRENT_USER_ID" --query id -o tsv)"
     fi
     echo "Current user object id: $CURRENT_USER_OBJECT_ID"
 
