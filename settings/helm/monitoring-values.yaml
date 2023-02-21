@@ -2,9 +2,6 @@
 
 # Dependencies / sub charts settings
 kube-prometheus-stack:
-  prometheus-node-exporter:
-    hostRootFsMount: false
-
   prometheus:
     prometheusSpec:
       externalUrl: 'https://${DOMAIN}/prometheus/'
