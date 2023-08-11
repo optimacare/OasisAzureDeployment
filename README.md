@@ -6,6 +6,7 @@ This document describes how to set up and manage the Oasis platform in Azure.
 
 - [Oasis on Azure](#oasis-on-azure)
   - [Table of contents](#table-of-contents)
+  - [1 Requirements](#1-requirements)
   - [2.1 Prepare repository](#21-prepare-repository)
     - [2.1.1 Configuration](#211-configuration)
       - [Deploy script settings](#deploy-script-settings)
@@ -47,6 +48,26 @@ This document describes how to set up and manage the Oasis platform in Azure.
     - [Why is another resource group created?](#why-is-another-resource-group-created)
     - [Database users](#database-users)
     - [Celery on Azure Service Bus](#celery-on-azure-service-bus)
+
+## 1 Requirements
+
+Before you begin, make sure you check the requirements.
+
+Basic requirements:
+
+- [Azure](https://www.azure.com) subscription
+- Azure account with enough privileges to create resources and assign roles
+
+For DevOps pipeline:
+
+- [Azure DevOps](https://azure.microsoft.com/en-us/services/devops/) (a free account works well to begin with)
+
+In case you would like to deploy from your local system and/or debug Azure/Kubernetes:
+
+- [Kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [Helm](https://helm.sh)
+- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
+
 ## 2.1 Prepare repository
 
 An Azure DevOps pipeline is based on a repository and the first step is to clone/fork this repository and put it on a
