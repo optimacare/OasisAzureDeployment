@@ -6,7 +6,8 @@ This document describes how to set up and manage the Oasis platform in Azure.
 
 - [Oasis on Azure](#oasis-on-azure)
   - [Table of contents](#table-of-contents)
-  - [1 Requirements](#1-requirements)
+- [1 Requirements](#1-requirements)
+- [2 Setup environment](#2-setup-environment)
   - [2.1 Prepare repository](#21-prepare-repository)
     - [2.1.1 Configuration](#211-configuration)
       - [Deploy script settings](#deploy-script-settings)
@@ -49,7 +50,7 @@ This document describes how to set up and manage the Oasis platform in Azure.
     - [Database users](#database-users)
     - [Celery on Azure Service Bus](#celery-on-azure-service-bus)
 
-## 1 Requirements
+# 1 Requirements
 
 Before you begin, make sure you check the requirements.
 
@@ -67,6 +68,8 @@ In case you would like to deploy from your local system and/or debug Azure/Kuber
 - [Kubectl](https://kubernetes.io/docs/tasks/tools/)
 - [Helm](https://helm.sh)
 - [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
+
+# 2 Setup environment
 
 ## 2.1 Prepare repository
 
