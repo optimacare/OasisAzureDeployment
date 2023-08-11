@@ -137,6 +137,7 @@ Once you have logged into [Azure Devops](https://dev.azure.com):
     5. Select `Service principal (automatic)` and click `Next`.
     6. Select your subscription, give the service connection name `Azure Connection`,
        check `Grant access permission to all pipelines` and click `Save`.
+    7. Repeat the same process to create a GitHub connection and name it "OasisLMF". 
 3. Set up the pipeline service principal access:
     1. Open the default pipeline by clicking `Pipelines` in menu to the left and then the first pipeline in the list.
     2. Click `Run pipeline`.
