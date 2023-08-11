@@ -22,12 +22,12 @@ resources:
       name: OasisLMF/OasisPlatform
       endpoint: OasisLMF
       type: github
-      ref: platform-2.0
+      ref: main
     - repository: OasisPiWind
       name: OasisLMF/OasisPiWind
       endpoint: OasisLMF
       type: github
-      ref: master
+      ref: main
 
 steps:
   - checkout: self
