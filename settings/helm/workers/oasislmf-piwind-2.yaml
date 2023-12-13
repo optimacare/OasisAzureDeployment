@@ -2,8 +2,8 @@ workers:
   oasislmf_piwind_1: # A name that is unique among all workers
     supplierId: OasisLMF  # Must be identical to supplier in the model data file share
     modelId: PiWind       # Must be identical to name in the model data file share
-    modelVersionId: "1"   # Must be identical to version in the model data file share
-    apiVersion: "v1"      # Single Server execution
+    modelVersionId: "2"   # Must be identical to version in the model data file share
+    apiVersion: "v2"      # Distributed exection
     image: ${ACR}/coreoasis/model_worker  # The path to your image, ${ACR} will automatically be replaced with your environments URL
     version: dev                          # Version tag of your image
     imagePullPolicy: Always
