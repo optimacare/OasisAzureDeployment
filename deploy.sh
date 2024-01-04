@@ -283,7 +283,7 @@ function get_or_generate_secret {
   if ! az keyvault secret list --vault-name "$key_vault_name" --query "[].name" -o tsv | grep -q "$1"; then
     echo "Generating secret $1..." 1>&2
 
-    az keyvault secret set --vault-name "$key_vault_name" --name "$1" --value "$(< /dev/urandom tr -dc '_A-Z-a-z-0-9#=?+-' | head -c32)" --query "value" -o tsv
+    az keyvault secret set --vault-name "$key_vault_name" --name "$1" --value "$(< /dev/urandom tr -dc '_A-Z-a-z-0-9=?-' | head -c32)" --query "value" -o tsv
   else
     az keyvault secret show --vault-name "$key_vault_name" --name "$1" --query "value" -o tsv
   fi
