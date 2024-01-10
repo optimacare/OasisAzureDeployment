@@ -4,43 +4,51 @@ This document describes how to set up and manage the Oasis platform in Azure.
 
 ## Table of contents
 
-1. [Requirements](#1-Requirements)
-2. [Setup environment](#2-Setup-environment)
-
-   2.1 [Prepare repository](#21-Prepare-repository)
-
-   2.2 [Prepare DevOps pipeline](#22-Prepare-DevOps-pipeline)
-
-   2.3 [Deploy the platform](#23-Deploy-the-platform)
-
-   2.4 [Deploy PiWind](#2.4-Deploy-PiWind)
-
-3. [Use the platform](#3-Use-the-platform)
-
-   3.1 [Manage your models](#31-Manage-your-models)
-
-   3.2 [Types of deployments](#32-Types-of-deployments)
-
-   3.4 [Run to verify](#34-Run-to-verify)
-
-   3.5 [Monitoring](#35-Monitoring)
-
-   3.6 [Configure worker scaling](#36-Configure-worker-scaling)
-
-4. [Manage resource groups](#4-Manage-resource-groups)
-
-   4.1 [View status](#41-View-status)
-
-   4.2 [Remove environment](#42-Remove-environment)
-
-   4.3 [Delete all oasis enterprise resource groups](#43-Delete-all-oasis-enterprise-resource-groups)
-
-   4.4 [Delete all resource groups](#44-Delete-all-resource-groups)
-
-5. [Deploy without the pipeline](#5-Deploy-without-the-pipeline)
-6. [Secure the platform](#6-Secure-the-platform)
-7. [Troubleshooting](#7-Troubleshooting)
-8. [Questions about design](#8-Questions-about-design)
+- [Oasis on Azure](#oasis-on-azure)
+  - [Table of contents](#table-of-contents)
+- [1 Requirements](#1-requirements)
+- [2 Setup environment](#2-setup-environment)
+  - [2.1 Prepare repository](#21-prepare-repository)
+    - [2.1.1 Configuration](#211-configuration)
+      - [Deploy script settings](#deploy-script-settings)
+      - [Azure bicep parameters - settings/azure/parameters.json](#azure-bicep-parameters---settingsazureparametersjson)
+      - [Helm settings](#helm-settings)
+  - [2.2 Prepare DevOps pipeline](#22-prepare-devops-pipeline)
+  - [2.3 Deploy the platform](#23-deploy-the-platform)
+  - [2.4 Deploy PiWind](#24-deploy-piwind)
+- [3 Use the platform](#3-use-the-platform)
+  - [3.1 Manage your models](#31-manage-your-models)
+    - [3.1.1 Step 1 - Upload model data](#311-step-1---upload-model-data)
+      - [Use script](#use-script)
+      - [Use Azure CLI](#use-azure-cli)
+    - [3.1.2 Step 2 - Upload docker image](#312-step-2---upload-docker-image)
+    - [3.1.3 Step 3 - Update Oasis models](#313-step-3---update-oasis-models)
+  - [3.2 Types of deployments](#32-types-of-deployments)
+  - [3.4 Run to verify](#34-run-to-verify)
+  - [3.5 Monitoring](#35-monitoring)
+    - [3.5.1 Load overview](#351-load-overview)
+    - [3.5.2 Container logs](#352-container-logs)
+    - [3.5.3 Alerts](#353-alerts)
+    - [3.6 Configure worker scaling](#36-configure-worker-scaling)
+      - [1 - Model](#1---model)
+      - [2 - The worker deployments Kubernetes scheduling configuration.](#2---the-worker-deployments-kubernetes-scheduling-configuration)
+      - [3 - The Azure Kubernetes nodes configuration.](#3---the-azure-kubernetes-nodes-configuration)
+  - [4 Manage resource groups](#4-manage-resource-groups)
+    - [4.1 View status](#41-view-status)
+    - [4.2 Remove environment](#42-remove-environment)
+    - [4.3 Delete all oasis enterprise resource groups](#43-delete-all-oasis-enterprise-resource-groups)
+    - [4.4 Delete all resource groups](#44-delete-all-resource-groups)
+  - [5 Deploy without the pipeline](#5-deploy-without-the-pipeline)
+    - [5.1 Deploy platform](#51-deploy-platform)
+    - [5.2 Deploy models](#52-deploy-models)
+- [6 Secure the platform](#6-secure-the-platform)
+  - [6.1 Default credentials](#61-default-credentials)
+  - [6.2 Monitoring services](#62-monitoring-services)
+    - [Base / Azure deployment gets stuck](#base--azure-deployment-gets-stuck)
+- [8 Questions about design](#8-questions-about-design)
+    - [Why is another resource group created?](#why-is-another-resource-group-created)
+    - [Database users](#database-users)
+    - [Celery on Azure Service Bus](#celery-on-azure-service-bus)
 
 # 1 Requirements
 
@@ -153,6 +161,7 @@ Once you have logged into [Azure Devops](https://dev.azure.com):
     5. Select `Service principal (automatic)` and click `Next`.
     6. Select your subscription, give the service connection name `Azure Connection`,
        check `Grant access permission to all pipelines` and click `Save`.
+    7. Repeat the same process to create a GitHub connection and name it "OasisLMF". 
 3. Set up the pipeline service principal access:
     1. Open the default pipeline by clicking `Pipelines` in menu to the left and then the first pipeline in the list.
     2. Click `Run pipeline`.
@@ -282,8 +291,12 @@ It will overwrite files but not remove any files.
 The Azure CLI can be used to upload files to the file share but requires your IP to be whitelisted in the CIDR range.
 
 ```
-# Set name of key vault - from settings/azure/parameters.json
-KEY_VAULT_NAME=keyVaultName
+# Set name of key vault 
+
+You can lookup the name of the keyvault on the Azure portal, or alternatively use az cli as below:
+
+KEY_VAULT_NAME=$(az keyvault list --resource-group <YOUR_RESOURCE_GROUP_NAME> | jq -r '.[0].name')
+
 
 # Get name and key for storage account
 OASIS_FS_ACCOUNT_NAME="$(az keyvault secret show --vault-name "$KEY_VAULT_NAME" --name oasisfs-name --query "value" -o tsv)"
