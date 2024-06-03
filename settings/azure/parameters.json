@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "allowedCidrRanges": {
-      "value": "197.223.70.29"
+      "value": ["197.223.70.29", "197.222.50.108"]
     },
     "oasisServerAdminPassword": {
       "value": "cc@TOR2025!"
