@@ -24,7 +24,7 @@
       "value": "oasis-enterprise"
     },
     "availabilityZones": {
-      "value": [1]
+      "value": ["1"]
     },
     "workspaceTier": {
       "value": "PerGB2018"
