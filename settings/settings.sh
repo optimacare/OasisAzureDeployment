@@ -4,10 +4,10 @@ LOCATION="northcentralus"
 
 # DNS name - must be unique within Azure and only contain characters permitted in domain names.
 # Deployment will be accessible at ${DNS_LABEL_NAME}.${LOCATION}.cloudapp.azure.com after deployment.
-DNS_LABEL_NAME=""
+DNS_LABEL_NAME="aashouroasis.northcentralus.cloudapp.azure.com "
 
 # Email to use for letsencrypt certificates
-LETSENCRYPT_EMAIL=""
+LETSENCRYPT_EMAIL="ayman@climateguardinsurance.com"
 
 # Name of the resource group to deploy to
 RESOURCE_GROUP="oasis-enterprise"
