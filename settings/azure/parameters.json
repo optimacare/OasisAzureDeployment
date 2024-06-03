@@ -3,17 +3,16 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "allowedCidrRanges": {
-      "value": ["0.0.0.0", "197.223.70.29"
-      ]
+      "value": "197.223.70.29"
     },
     "oasisServerAdminPassword": {
       "value": "cc@TOR2025!"
     },
     "platformNodeVm": {
-      "value": "Standard_B2ms"
+      "value": "Standard_D2s_v3"
     },
     "workerNodesVm": {
-      "value": "Standard_B2s"
+      "value": "Standard_D2s_v3"
     },
     "workerNodesMaxCount": {
       "value": 2
@@ -25,7 +24,7 @@
       "value": "oasis-enterprise"
     },
     "availabilityZones": {
-      "value": []
+      "value": ["Zone 1"]
     },
     "workspaceTier": {
       "value": "PerGB2018"
