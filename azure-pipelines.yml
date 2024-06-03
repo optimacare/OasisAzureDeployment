@@ -2,8 +2,6 @@ trigger: none
 
 pool:
   name: Default
-  demands:
-    - agent.name -equals self-hosted-agent-name # Replace with your actual self-hosted agent name
 
 parameters:
   - name: deploy
