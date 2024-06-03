@@ -7,6 +7,7 @@ parameters:
   - name: deploy
     displayName: Deploy
     type: string
+    default: "resource-groups" # Set a default value here
     values:
       - resource-groups
       - base
@@ -46,6 +47,5 @@ steps:
       addSpnToEnvironment: true
       inlineScript: |
         set -e
-
-        cd ../OasisAzureDeployment
+        cd ./OasisAzureDeployment
         OE_SETTINGS_FILE=settings/settings.sh ./deploy.sh ${{ parameters.deploy }}
