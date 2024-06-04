@@ -1,6 +1,6 @@
 # Azure location - Use "Name" from Azure CLI:
 # az account list-locations -o table
-LOCATION="northcentralus"
+LOCATION="eastus2"
 
 # DNS name - must be unique within Azure and only contain characters permitted in domain names.
 # Deployment will be accessible at ${DNS_LABEL_NAME}.${LOCATION}.cloudapp.azure.com after deployment.
