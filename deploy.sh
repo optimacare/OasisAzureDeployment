@@ -388,6 +388,7 @@ case "$deploy_type" in
      --resource-group "$RESOURCE_GROUP" \
      --template-file "${SCRIPT_DIR}/azure/bicep/main.bicep" \
      --parameters "@${AZURE_PARAM_FILE}" \
+     --parameters availabilityZones='[ "1", "2", "3" ]' \
      --parameter "registryName=${acr_name}" \
      --parameter "nodeResourceGroup=${aks_resource_group}" \
      --parameter "currentUserObjectId=${CURRENT_USER_OBJECT_ID}" \
